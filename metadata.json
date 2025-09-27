@@ -1,0 +1,5 @@
+{
+  "name": "AI Wireframe Designer",
+  "description": "An intelligent wireframe designer that allows you to draw sketches on a canvas, and with the power of Gemini, automatically convert your drawings into structured UI components. You can then edit, customize, and generate React/HTML code for your designs.",
+  "requestFramePermissions": []
+}
