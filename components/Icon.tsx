@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 export type IconName =
@@ -36,7 +37,12 @@ export type IconName =
   | 'card'
   | 'palette'
   | 'sun'
-  | 'moon';
+  | 'moon'
+  | 'zoom-in'
+  | 'zoom-out'
+  | 'chevron-left'
+  | 'chevron-right'
+  | 'upload';
 
 
 const ICONS: Record<IconName, React.FC<React.SVGProps<SVGSVGElement>>> = {
@@ -166,44 +172,48 @@ const ICONS: Record<IconName, React.FC<React.SVGProps<SVGSVGElement>>> = {
     ),
     'align-left': (props) => (
         <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="4" y1="21" x2="4" y2="3" />
-            <rect x="8" y="6" width="8" height="4" rx="1" />
-            <rect x="8" y="14" width="12" height="4" rx="1" />
+            <line x1="21" y1="10" x2="3" y2="10" />
+            <line x1="17" y1="6" x2="3" y2="6" />
+            <line x1="21" y1="14" x2="3" y2="14" />
+            <line x1="17" y1="18" x2="3" y2="18" />
         </svg>
     ),
     'align-center-horizontal': (props) => (
         <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 3v18" strokeDasharray="2 2" />
-            <rect x="6" y="6" width="12" height="4" rx="1" />
-            <rect x="8" y="14" width="8" height="4" rx="1" />
+            <path d="M2 12h20" />
+            <path d="M10 17V7" />
+            <path d="M14 17V7" />
         </svg>
     ),
     'align-right': (props) => (
         <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="20" y1="21" x2="20" y2="3" />
-            <rect x="8" y="6" width="8" height="4" rx="1" />
-            <rect x="4" y="14" width="12" height="4" rx="1" />
+            <line x1="21" y1="10" x2="3" y2="10" />
+            <line x1="21" y1="6" x2="7" y2="6" />
+            <line x1="21" y1="14" x2="7" y2="14" />
+            <line x1="21" y1="18" x2="3" y2="18" />
         </svg>
     ),
     'align-top': (props) => (
         <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="3" y1="4" x2="21" y2="4" />
-            <rect x="6" y="8" width="4" height="8" rx="1" />
-            <rect x="14" y="8" width="4" height="12" rx="1" />
+            <line x1="10" y1="21" x2="10" y2="3" />
+            <line x1="6" y1="17" x2="6" y2="3" />
+            <line x1="14" y1="21" x2="14" y2="3" />
+            <line x1="18" y1="17" x2="18" y2="3" />
         </svg>
     ),
     'align-center-vertical': (props) => (
         <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 12h18" strokeDasharray="2 2" />
-            <rect x="6" y="6" width="4" height="12" rx="1" />
-            <rect x="14" y="8" width="4" height="8" rx="1" />
+            <path d="M12 2v20" />
+            <path d="M17 10H7" />
+            <path d="M17 14H7" />
         </svg>
     ),
     'align-bottom': (props) => (
         <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="3" y1="20" x2="21" y2="20" />
-            <rect x="6" y="8" width="4" height="8" rx="1" />
-            <rect x="14" y="4" width="4" height="12" rx="1" />
+            <line x1="10" y1="21" x2="10" y2="3" />
+            <line x1="6" y1="21" x2="6" y2="7" />
+            <line x1="14" y1="21" x2="14" y2="3" />
+            <line x1="18" y1="21" x2="18" y2="7" />
         </svg>
     ),
     lock: (props) => (
@@ -215,37 +225,38 @@ const ICONS: Record<IconName, React.FC<React.SVGProps<SVGSVGElement>>> = {
     unlock: (props) => (
         <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-            <path d="M7 11V7a5 5 0 0 1 5-5v0a5 5 0 0 1 5 5v4" />
+            <path d="M7 11V7a5 5 0 0 1 9.9-1" />
         </svg>
     ),
     library: (props) => (
         <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M4 22h14a2 2 0 0 0 2-2V7.5L14.5 2H6a2 2 0 0 0-2 2v4" />
-            <path d="M14 2v6h6" />
-            <path d="M2 17h10" />
-            <path d="M5 17v-5h4v5" />
-            <path d="M2 17v-1a2 2 0 0 1 2-2h4" />
+            <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Z" />
+            <path d="M15 2v20" />
+            <path d="M15 7h5" />
+            <path d="M15 12h5" />
+            <path d="M15 17h5" />
         </svg>
     ),
     nav: (props) => (
         <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5" />
+            <path d="M2 12h20M2 6h20M2 18h20" />
         </svg>
     ),
     card: (props) => (
         <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="1" y="6" width="22" height="16" rx="2" />
-            <path d="M1 10h22" />
-            <path d="M6 2h12a2 2 0 0 1 2 2v2H4V4a2 2 0 0 1 2-2z" />
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <path d="M3 9h18" />
+            <path d="M9 15h6" />
         </svg>
     ),
     palette: (props) => (
-         <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
-            <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
-            <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />
-            <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
-            <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" />
+        <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="5" r="3" />
+            <circle cx="6" cy="12" r="3" />
+            <circle cx="18" cy="12" r="3" />
+            <circle cx="12" cy="19" r="3" />
+            <path d="m8.5 8.5 7 7" />
+            <path d="m8.5 15.5 7-7" />
         </svg>
     ),
     sun: (props) => (
@@ -266,12 +277,41 @@ const ICONS: Record<IconName, React.FC<React.SVGProps<SVGSVGElement>>> = {
             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
         </svg>
     ),
+    'zoom-in': (props) => (
+        <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            <line x1="11" y1="8" x2="11" y2="14" />
+            <line x1="8" y1="11" x2="14" y2="11" />
+        </svg>
+    ),
+    'zoom-out': (props) => (
+        <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            <line x1="8" y1="11" x2="14" y2="11" />
+        </svg>
+    ),
+    'chevron-left': (props) => (
+        <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+        </svg>
+    ),
+    'chevron-right': (props) => (
+        <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 18 15 12 9 6" />
+        </svg>
+    ),
+    upload: (props) => (
+        <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="17 8 12 3 7 8" />
+            <line x1="12" y1="3" x2="12" y2="15" />
+        </svg>
+    ),
 };
 
 export const Icon: React.FC<{ name: IconName; className?: string }> = ({ name, className }) => {
-    const SvgComponent = ICONS[name];
-    if (!SvgComponent) {
-        return null; // or a fallback icon
-    }
-    return <SvgComponent className={className} />;
+    const IconComponent = ICONS[name];
+    return IconComponent ? <IconComponent className={className} /> : null;
 };

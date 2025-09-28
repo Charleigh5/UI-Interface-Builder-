@@ -1,4 +1,6 @@
-import { WireframeComponent } from '../types';
+
+// Fix: Corrected import path for WireframeComponent to be relative to the current directory.
+import { WireframeComponent } from './types';
 import { getDefaultProperties } from '../utils/componentUtils';
 import { IconName } from '../components/Icon';
 

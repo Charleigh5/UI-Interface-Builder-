@@ -1,6 +1,7 @@
 
 import React from 'react';
-import { WireframeComponent } from '../../types';
+// Fix: Corrected import path for WireframeComponent.
+import { WireframeComponent } from '../types';
 
 const toKebabCase = (str: string) => str.replace(/([a-z0-9]|(?=[A-Z]))([A-Z])/g, '$1-$2').toLowerCase();
 

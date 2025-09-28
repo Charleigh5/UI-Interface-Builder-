@@ -1,7 +1,6 @@
 
-
 import { GoogleGenAI, Type } from "@google/genai";
-import { WireframeComponent, ComponentProperties, LayoutSuggestionType, ThemeMode } from '../../types';
+import { WireframeComponent, ComponentProperties, LayoutSuggestionType, ThemeMode } from '../types';
 import { getDefaultProperties } from "../../utils/componentUtils";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
@@ -57,12 +56,15 @@ export async function analyzeSketch(imageDataUrl: string, theme: ThemeMode = 'li
             config: { responseMimeType: 'application/json', responseSchema: analyzeSketchSchema },
         });
         
-        const jsonText = response.text.trim();
-        // Fix: Explicitly type the parsed JSON to ensure type safety downstream.
-        const result: { components: { type: WireframeComponent['type'], x: number, y: number, width: number, height: number, label: string }[] } = JSON.parse(jsonText);
+        const jsonText = response.text?.trim();
+        if (!jsonText) {
+            console.warn("Gemini returned empty JSON for sketch analysis.");
+            return [];
+        }
+        const result = JSON.parse(jsonText);
 
         if (result?.components && Array.isArray(result.components)) {
-             return result.components.map(c => ({ 
+             return result.components.filter(Boolean).map((c: any) => ({ 
                 ...c, 
                 properties: getDefaultProperties(c.type, theme), 
                 rotation: 0, 
@@ -75,6 +77,74 @@ export async function analyzeSketch(imageDataUrl: string, theme: ThemeMode = 'li
         throw new Error("Failed to parse sketch analysis from AI.");
     }
 }
+
+const imageToComponentSchema = {
+    type: Type.OBJECT,
+    properties: {
+        type: {
+            type: Type.STRING,
+            enum: ['button', 'input', 'text', 'image', 'rectangle'],
+            description: "The type of the UI component.",
+        },
+        width: { type: Type.NUMBER, description: "The estimated width of the component in pixels." },
+        height: { type: Type.NUMBER, description: "The estimated height of the component in pixels." },
+        label: { type: Type.STRING, description: "A descriptive label for the component." },
+        properties: {
+            type: Type.OBJECT,
+            properties: {
+                backgroundColor: { type: Type.STRING, description: "Hex color code for background." },
+                borderColor: { type: Type.STRING, description: "Hex color code for border." },
+                textColor: { type: Type.STRING, description: "Hex color code for text." },
+                borderRadius: { type: Type.NUMBER, description: "Border radius in pixels." },
+                borderWidth: { type: Type.NUMBER, description: "Border width in pixels." },
+                buttonText: { type: Type.STRING, description: "The text content of a button." },
+                placeholder: { type: Type.STRING, description: "The placeholder text of an input field." },
+                fontSize: { type: Type.NUMBER },
+                fontWeight: { type: Type.STRING },
+            },
+            description: "Visual properties of the component."
+        }
+    },
+    required: ['type', 'width', 'height', 'label', 'properties']
+};
+
+export async function convertImageToComponent(imageDataUrl: string, theme: ThemeMode = 'light'): Promise<Omit<WireframeComponent, 'id' | 'x' | 'y'>> {
+    const base64Data = imageDataUrl.split(',')[1];
+    const imagePart = { inlineData: { mimeType: 'image/png', data: base64Data } };
+    const textPart = { text: "Analyze this image, which contains a single UI component like a button or a card. Describe it as a single component object. Extract its type, estimated width and height, a label, and visual properties like colors, text, and border-radius. Adhere to the provided JSON schema." };
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: { parts: [imagePart, textPart] },
+            config: { responseMimeType: 'application/json', responseSchema: imageToComponentSchema },
+        });
+
+        const jsonText = response.text?.trim();
+        if (!jsonText) {
+            throw new Error("Gemini returned an empty response for image conversion.");
+        }
+        const result = JSON.parse(jsonText);
+        
+        const defaultProps = getDefaultProperties(result.type, theme);
+        const finalProperties = { ...defaultProps, ...result.properties };
+
+        return {
+            type: result.type,
+            width: result.width || 200,
+            height: result.height || 80,
+            label: result.label || 'New Component',
+            properties: finalProperties,
+            rotation: 0,
+            isLocked: false,
+        };
+
+    } catch (e) {
+        console.error("Error converting image to component:", e);
+        throw new Error("Failed to convert image to component.");
+    }
+}
+
 
 const contentUpdateSchema = {
     type: Type.OBJECT,
@@ -104,7 +174,11 @@ export async function generateContentForComponents(prompt: string, components: W
         config: { responseMimeType: "application/json", responseSchema: contentUpdateSchema }
     });
 
-    const jsonText = response.text.trim();
+    const jsonText = response.text?.trim();
+    if (!jsonText) {
+        console.warn("Gemini returned empty JSON for content generation.");
+        return [];
+    }
     const result = JSON.parse(jsonText);
 
     if (result && result.updates && Array.isArray(result.updates)) {
@@ -151,7 +225,11 @@ export async function generateStyleVariations(prompt: string, components: Wirefr
         contents: `Generate 4 distinct UI style variations based on the prompt: "${prompt}". The styles should be suitable for components like: ${componentTypes.join(', ')}. Provide CSS property values for each style.`,
         config: { responseMimeType: "application/json", responseSchema: styleSuggestionsSchema }
     });
-    const jsonText = response.text.trim();
+    const jsonText = response.text?.trim();
+    if (!jsonText) {
+        console.warn("Gemini returned empty JSON for style variations.");
+        return [];
+    }
     const result = JSON.parse(jsonText);
     return (result.styles || []).slice(0, 4);
 }
@@ -192,7 +270,11 @@ export async function generateLayoutSuggestions(components: WireframeComponent[]
             config: { responseMimeType: 'application/json', responseSchema: layoutSuggestionsSchema }
         });
         
-        const jsonText = response.text.trim();
+        const jsonText = response.text?.trim();
+        if (!jsonText) {
+            console.warn("Gemini returned empty JSON for layout suggestions.");
+            return [];
+        }
         const result = JSON.parse(jsonText);
         
         if (result && result.positions && Array.isArray(result.positions)) {
@@ -211,22 +293,23 @@ export async function generateLayoutSuggestions(components: WireframeComponent[]
 
 const findClosestAspectRatio = (width: number, height: number): '1:1' | '3:4' | '4:3' | '9:16' | '16:9' => {
     const targetRatio = width / height;
-    const supportedRatios = {
+    const supportedRatios: Record<'1:1' | '3:4' | '4:3' | '9:16' | '16:9', number> = {
         '1:1': 1,
         '4:3': 4 / 3,
         '3:4': 3 / 4,
         '16:9': 16 / 9,
-        '9:16': 9 / 16
+        '9:16': 9 / 16,
     };
 
     let closest: '1:1' | '3:4' | '4:3' | '9:16' | '16:9' = '1:1';
     let minDiff = Infinity;
 
-    for (const [key, value] of Object.entries(supportedRatios)) {
-        const diff = Math.abs(targetRatio - value);
+    for (const ratio in supportedRatios) {
+        const key = ratio as keyof typeof supportedRatios;
+        const diff = Math.abs(targetRatio - supportedRatios[key]);
         if (diff < minDiff) {
             minDiff = diff;
-            closest = key as '1:1' | '3:4' | '4:3' | '9:16' | '16:9';
+            closest = key;
         }
     }
     return closest;
@@ -235,7 +318,6 @@ const findClosestAspectRatio = (width: number, height: number): '1:1' | '3:4' | 
 export async function generateImage(prompt: string, width: number, height: number): Promise<string> {
     try {
         const aspectRatio = findClosestAspectRatio(width, height);
-
         const response = await ai.models.generateImages({
             model: 'imagen-4.0-generate-001',
             prompt: prompt,
@@ -243,20 +325,19 @@ export async function generateImage(prompt: string, width: number, height: numbe
                 numberOfImages: 1,
                 outputMimeType: 'image/png',
                 aspectRatio: aspectRatio,
-            }
+            },
         });
 
         if (response.generatedImages && response.generatedImages.length > 0) {
             return response.generatedImages[0].image.imageBytes;
         }
         throw new Error("No image was generated.");
-
     } catch (e) {
         console.error("Error generating image with Gemini:", e);
         throw new Error("Failed to generate image from AI.");
     }
 }
-
+// Fix: Corrected and completed the themeGenerationSchema, which was previously malformed.
 const themeGenerationSchema = {
     type: Type.OBJECT,
     properties: {
@@ -268,19 +349,21 @@ const themeGenerationSchema = {
                 accent: { type: Type.STRING, description: "Accent color hex code." },
                 textLight: { type: Type.STRING, description: "Text color for dark backgrounds." },
                 textDark: { type: Type.STRING, description: "Text color for light backgrounds." },
-                backgroundLight: { type: Type.STRING, description: "Light background color." },
+                backgroundLight: { type: Type.STRING, description: "A light background color." },
             },
+            required: ['primary', 'secondary', 'textLight', 'textDark', 'backgroundLight']
         },
-        borderRadius: { type: Type.NUMBER, description: "A suitable border radius in pixels." },
-        fontWeight: { type: Type.STRING, description: "A suitable default font weight (e.g., '400', '500')." }
+        borderRadius: { type: Type.NUMBER, description: "A suitable border radius in pixels (e.g., 8)." },
+        fontWeight: { type: Type.STRING, description: "A suitable font weight (e.g., '500' or '600')." }
     },
     required: ['colors', 'borderRadius', 'fontWeight']
 };
 
+// Fix: Added the missing generateThemeFromImage function.
 export async function generateThemeFromImage(imageDataUrl: string): Promise<Theme> {
     const base64Data = imageDataUrl.split(',')[1];
-    const imagePart = { inlineData: { mimeType: 'image/jpeg', data: base64Data } };
-    const textPart = { text: "Generate a UI theme from this image. Extract a color palette (primary, secondary, accent, text, background), a border radius, and a default font weight." };
+    const imagePart = { inlineData: { mimeType: 'image/png', data: base64Data } };
+    const textPart = { text: "Analyze this image and generate a color theme based on it. Provide primary, secondary, accent, text (light and dark), and background (light) colors. Also suggest a border radius and font weight. Respond with a JSON object that adheres to the provided schema." };
 
     try {
         const response = await ai.models.generateContent({
@@ -289,10 +372,26 @@ export async function generateThemeFromImage(imageDataUrl: string): Promise<Them
             config: { responseMimeType: 'application/json', responseSchema: themeGenerationSchema },
         });
 
-        const jsonText = response.text.trim();
-        return JSON.parse(jsonText);
-    } catch (error) {
-        console.error("Error generating theme from image:", error);
-        throw new Error("Failed to generate theme from AI.");
+        const jsonText = response.text?.trim();
+        if (!jsonText) {
+            throw new Error("Gemini returned an empty response for theme generation.");
+        }
+        const result = JSON.parse(jsonText);
+
+        return {
+            colors: {
+                primary: result.colors?.primary || '#2563eb',
+                secondary: result.colors?.secondary || '#d1d5db',
+                accent: result.colors?.accent || '#ec4899',
+                textLight: result.colors?.textLight || '#ffffff',
+                textDark: result.colors?.textDark || '#1e293b',
+                backgroundLight: result.colors?.backgroundLight || '#f9fafb',
+            },
+            borderRadius: result.borderRadius ?? 8,
+            fontWeight: result.fontWeight ?? '500',
+        };
+    } catch (e) {
+        console.error("Error generating theme from image:", e);
+        throw new Error("Failed to generate theme from image.");
     }
 }

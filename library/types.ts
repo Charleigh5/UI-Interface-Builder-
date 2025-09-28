@@ -1,10 +1,15 @@
 
-import { WireframeComponent } from "./types";
 
 export type Tool = 'select' | 'pen' | 'rectangle' | 'circle' | 'text' | 'button' | 'input' | 'image' | 'erase';
 export type Alignment = 'left' | 'center-horizontal' | 'right' | 'top' | 'center-vertical' | 'bottom';
 export type LayoutSuggestionType = 'vertical-stack' | 'horizontal-list' | 'grid';
 export type ThemeMode = 'light' | 'dark';
+
+export interface DrawingSettings {
+    penWidth: number;
+    penOpacity: number;
+    shapeFill: boolean;
+}
 
 export interface ComponentProperties {
     backgroundColor?: string;
@@ -54,6 +59,9 @@ export type AppAction =
     | { type: 'ANALYZE_SKETCH_START' }
     | { type: 'ANALYZE_SKETCH_SUCCESS'; payload: Omit<WireframeComponent, 'id'>[] }
     | { type: 'ANALYZE_SKETCH_FAILURE' }
+    | { type: 'CONVERT_IMAGE_START' }
+    | { type: 'CONVERT_IMAGE_SUCCESS'; payload: WireframeComponent }
+    | { type: 'CONVERT_IMAGE_FAILURE' }
     | { type: 'GENERATE_STYLES_START' }
     | { type: 'GENERATE_STYLES_SUCCESS'; payload: Partial<ComponentProperties>[] }
     | { type: 'GENERATE_STYLES_FAILURE' }
@@ -63,4 +71,8 @@ export type AppAction =
     | { type: 'GENERATE_LAYOUT_FAILURE' }
     | { type: 'GENERATE_THEME_START' }
     | { type: 'GENERATE_THEME_SUCCESS' }
-    | { type: 'GENERATE_THEME_FAILURE' };
+    | { type: 'GENERATE_THEME_FAILURE' }
+    | { type: 'SET_VIEW_TRANSFORM'; payload: { zoom?: number; pan?: { x: number; y: number } } }
+    | { type: 'TOGGLE_RIGHT_SIDEBAR' }
+    | { type: 'TOGGLE_LEFT_SIDEBAR' }
+    | { type: 'SET_DRAWING_SETTING'; payload: { key: keyof DrawingSettings; value: number | boolean } };

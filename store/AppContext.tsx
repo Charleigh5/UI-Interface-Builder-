@@ -1,5 +1,6 @@
-import React, { createContext, useReducer, useCallback, ReactNode } from 'react';
-import { WireframeComponent, Tool, Alignment, ComponentProperties, LayoutSuggestionType, ThemeMode, AppAction } from '../library/types';
+
+import React, { createContext, useReducer, useCallback, ReactNode, useMemo } from 'react';
+import { WireframeComponent, Tool, Alignment, ComponentProperties, LayoutSuggestionType, ThemeMode, AppAction, DrawingSettings } from '../library/types';
 import * as geminiService from '../library/services/geminiService';
 import { getDefaultProperties } from '../utils/componentUtils';
 import { libraryItems } from '../library/definitions';
@@ -10,10 +11,16 @@ interface AppState {
     selectedComponentIds: string[];
     theme: ThemeMode;
     isAnalyzing: boolean;
+    isConvertingImage: boolean;
     isGeneratingStyles: boolean;
     isGeneratingLayout: boolean;
     isGeneratingTheme: boolean;
     styleSuggestions: Partial<ComponentProperties>[];
+    zoom: number;
+    pan: { x: number; y: number };
+    isRightSidebarVisible: boolean;
+    isLeftSidebarVisible: boolean;
+    drawingSettings: DrawingSettings;
 }
 
 const initialState: AppState = {
@@ -22,18 +29,60 @@ const initialState: AppState = {
     selectedComponentIds: [],
     theme: 'light',
     isAnalyzing: false,
+    isConvertingImage: false,
     isGeneratingStyles: false,
     isGeneratingLayout: false,
     isGeneratingTheme: false,
     styleSuggestions: [],
+    zoom: 1,
+    pan: { x: 0, y: 0 },
+    isRightSidebarVisible: true,
+    isLeftSidebarVisible: true,
+    drawingSettings: {
+        penWidth: 2,
+        penOpacity: 1,
+        shapeFill: false,
+    },
 };
 
 const appReducer = (state: AppState, action: AppAction): AppState => {
     switch (action.type) {
         case 'SET_TOOL':
             return { ...state, currentTool: action.payload };
-        case 'SET_THEME':
-            return { ...state, theme: action.payload };
+        case 'SET_THEME': {
+            const newTheme = action.payload;
+            const updatedComponents = state.components.map(component => {
+                const oldThemeDefaults = getDefaultProperties(component.type, state.theme);
+                const newThemeDefaults = getDefaultProperties(component.type, newTheme);
+                const newProperties = { ...component.properties };
+                let propertiesChanged = false;
+
+                const themeProps: (keyof ComponentProperties)[] = [
+                    'backgroundColor',
+                    'borderColor',
+                    'textColor'
+                ];
+
+                for (const prop of themeProps) {
+                    if (component.properties[prop] === oldThemeDefaults[prop]) {
+                        newProperties[prop] = newThemeDefaults[prop];
+                        propertiesChanged = true;
+                    }
+                }
+
+                if (propertiesChanged) {
+                    return { ...component, properties: newProperties };
+                }
+
+                return component;
+            });
+
+            return {
+                ...state,
+                theme: newTheme,
+                components: updatedComponents,
+            };
+        }
         case 'ADD_COMPONENT':
             return { ...state, components: [...state.components, action.payload] };
         case 'ADD_COMPONENTS':
@@ -42,6 +91,11 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             const { id, updates } = action.payload;
             const componentToUpdate = state.components.find(c => c.id === id);
             if (!componentToUpdate) return state;
+
+            // Prevent updates to locked components, except for unlocking them.
+            if (componentToUpdate.isLocked && !(updates.isLocked !== undefined && Object.keys(updates).length === 1)) {
+                return state;
+            }
 
             const dx = 'x' in updates && updates.x !== undefined ? updates.x - componentToUpdate.x : 0;
             const dy = 'y' in updates && updates.y !== undefined ? updates.y - componentToUpdate.y : 0;
@@ -67,9 +121,10 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             return { ...state, components: state.components.map(c => c.id === id ? { ...c, ...updates } : c) };
         }
         case 'DELETE_COMPONENT': {
-            const toDelete = new Set<string>();
             const component = state.components.find(c => c.id === action.payload);
+            if (component?.isLocked) return state;
 
+            const toDelete = new Set<string>();
             const addDescendantsToDelete = (groupId: string) => {
                 toDelete.add(groupId);
                 const group = state.components.find(c => c.id === groupId);
@@ -107,9 +162,20 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             return { ...state, isAnalyzing: true };
         case 'ANALYZE_SKETCH_SUCCESS':
             const newComponents = action.payload.map(c => ({...c, id: Date.now().toString() + Math.random().toString(36).substring(2, 9) }));
-            return { ...state, isAnalyzing: false, components: newComponents, selectedComponentIds: newComponents.map(c => c.id) };
+            return { ...state, isAnalyzing: false, components: [...state.components, ...newComponents], selectedComponentIds: newComponents.map(c => c.id) };
         case 'ANALYZE_SKETCH_FAILURE':
             return { ...state, isAnalyzing: false };
+        case 'CONVERT_IMAGE_START':
+            return { ...state, isConvertingImage: true };
+        case 'CONVERT_IMAGE_SUCCESS':
+            return { 
+                ...state, 
+                isConvertingImage: false, 
+                components: [...state.components, action.payload], 
+                selectedComponentIds: [action.payload.id] 
+            };
+        case 'CONVERT_IMAGE_FAILURE':
+            return { ...state, isConvertingImage: false };
         case 'GENERATE_STYLES_START':
             return { ...state, isGeneratingStyles: true };
         case 'GENERATE_STYLES_SUCCESS':
@@ -128,6 +194,24 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
         case 'GENERATE_THEME_SUCCESS':
         case 'GENERATE_THEME_FAILURE':
             return { ...state, isGeneratingTheme: false };
+        case 'SET_VIEW_TRANSFORM':
+            return {
+                ...state,
+                zoom: action.payload.zoom ?? state.zoom,
+                pan: action.payload.pan ?? state.pan,
+            };
+        case 'TOGGLE_RIGHT_SIDEBAR':
+            return { ...state, isRightSidebarVisible: !state.isRightSidebarVisible };
+        case 'TOGGLE_LEFT_SIDEBAR':
+            return { ...state, isLeftSidebarVisible: !state.isLeftSidebarVisible };
+        case 'SET_DRAWING_SETTING':
+            return {
+                ...state,
+                drawingSettings: {
+                    ...state.drawingSettings,
+                    [action.payload.key]: action.payload.value,
+                },
+            };
         default:
             return state;
     }
@@ -146,11 +230,18 @@ type AppContextType = {
     bringToFront: () => void;
     sendToBack: () => void;
     analyzeSketch: (imageDataUrl: string) => Promise<void>;
+    convertImageToComponent: (imageDataUrl: string) => Promise<void>;
+    duplicateComponents: () => void;
     generateContent: (prompt: string) => Promise<void>;
     generateStyles: (prompt: string) => Promise<void>;
     applyStyle: (style: Partial<ComponentProperties>) => void;
     generateLayout: (layoutType: LayoutSuggestionType) => Promise<void>;
     generateTheme: (imageDataUrl: string) => Promise<void>;
+    setViewTransform: (transform: { zoom?: number; pan?: { x: number; y: number } }) => void;
+    toggleRightSidebar: () => void;
+    toggleLeftSidebar: () => void;
+    setDrawingSetting: (key: keyof DrawingSettings, value: number | boolean) => void;
+    allEffectivelySelectedIds: Set<string>;
 };
 
 export const AppContext = createContext<AppContextType>({} as AppContextType);
@@ -159,7 +250,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const [state, dispatch] = useReducer(appReducer, initialState);
 
     const addComponent = useCallback((component: Omit<WireframeComponent, 'id'>) => {
-        const newComponent: WireframeComponent = { ...component, id: Date.now().toString() + Math.random().toString(36).substring(2, 9) };
+        const newComponent: WireframeComponent = { ...component, id: Date.now().toString() + Math.random().toString(36).substring(2, 9), isLocked: false };
         dispatch({ type: 'ADD_COMPONENT', payload: newComponent });
         return newComponent;
     }, []);
@@ -195,22 +286,58 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, [state.theme]);
 
     const selectComponent = useCallback((id: string | null, multiSelect: boolean = false) => {
+        const allComponentsById = new Map(state.components.map(c => [c.id, c]));
+        
+        const findTopLevelGroup = (componentId: string): string => {
+            const component = allComponentsById.get(componentId);
+            if (component?.groupId) {
+                return findTopLevelGroup(component.groupId);
+            }
+            return componentId;
+        };
+        
         if (id === null) {
             dispatch({ type: 'SET_SELECTED_COMPONENTS', payload: [] });
             return;
         }
+
+        const topLevelId = findTopLevelGroup(id);
+
         if (multiSelect) {
-            const newSelection = state.selectedComponentIds.includes(id) ? state.selectedComponentIds.filter(i => i !== id) : [...state.selectedComponentIds, id];
-            dispatch({ type: 'SET_SELECTED_COMPONENTS', payload: newSelection });
+            const currentTopLevelSelection = new Set(state.selectedComponentIds.map(findTopLevelGroup));
+             if (currentTopLevelSelection.has(topLevelId)) {
+                const newSelection = state.selectedComponentIds.filter(selId => findTopLevelGroup(selId) !== topLevelId);
+                 dispatch({ type: 'SET_SELECTED_COMPONENTS', payload: newSelection });
+            } else {
+                dispatch({ type: 'SET_SELECTED_COMPONENTS', payload: [...state.selectedComponentIds, topLevelId] });
+            }
         } else {
-            dispatch({ type: 'SET_SELECTED_COMPONENTS', payload: [id] });
+             dispatch({ type: 'SET_SELECTED_COMPONENTS', payload: [topLevelId] });
         }
-    }, [state.selectedComponentIds]);
+    }, [state.components, state.selectedComponentIds]);
     
     const toggleLock = useCallback((id: string) => {
         const component = state.components.find(c => c.id === id);
         if (component) {
-            dispatch({ type: 'UPDATE_COMPONENT', payload: { id, updates: { isLocked: !component.isLocked } } });
+            const newLockState = !component.isLocked;
+            // Recursively toggle lock state for children of a group
+            const componentsToUpdate = new Map<string, { isLocked: boolean }>();
+            
+            const updateLockStateRecursive = (componentId: string) => {
+                const comp = state.components.find(c => c.id === componentId);
+                if (comp) {
+                    componentsToUpdate.set(comp.id, { isLocked: newLockState });
+                    if (comp.type === 'group' && comp.childIds) {
+                        comp.childIds.forEach(childId => updateLockStateRecursive(childId));
+                    }
+                }
+            };
+            
+            updateLockStateRecursive(id);
+
+            componentsToUpdate.forEach((updates, componentId) => {
+                 dispatch({ type: 'UPDATE_COMPONENT', payload: { id: componentId, updates } });
+            });
         }
     }, [state.components]);
 
@@ -218,6 +345,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (state.selectedComponentIds.length < 2) return;
         
         const selected = state.components.filter(c => state.selectedComponentIds.includes(c.id));
+        if (selected.some(c => c.isLocked)) {
+            alert("Cannot modify locked components. Please unlock them first.");
+            return;
+        }
         const minX = Math.min(...selected.map(c => c.x));
         const minY = Math.min(...selected.map(c => c.y));
         const maxX = Math.max(...selected.map(c => c.x + c.width));
@@ -227,7 +358,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             id: `group-${Date.now()}`, type: 'group',
             x: minX, y: minY, width: maxX - minX, height: maxY - minY,
             label: 'New Group', properties: {},
-            childIds: state.selectedComponentIds, rotation: 0
+            childIds: state.selectedComponentIds, rotation: 0, isLocked: false,
         };
         dispatch({ type: 'GROUP_COMPONENTS', payload: newGroup });
     }, [state.components, state.selectedComponentIds]);
@@ -236,10 +367,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const group = state.components.find(c => state.selectedComponentIds.length === 1 && c.id === state.selectedComponentIds[0]);
         if (!group || group.type !== 'group' || !group.childIds) return;
 
+        if (group.isLocked) {
+            alert("Cannot ungroup a locked group. Please unlock it first.");
+            return;
+        }
+
         dispatch({ type: 'UNGROUP_COMPONENTS', payload: { groupToRemove: group.id, childrenToSelect: [...group.childIds] } });
     }, [state.components, state.selectedComponentIds]);
 
     const bringToFront = useCallback(() => {
+        const selectedComponents = state.components.filter(c => state.selectedComponentIds.includes(c.id));
+        if (selectedComponents.some(c => c.isLocked)) {
+            alert("Cannot reorder locked components.");
+            return;
+        }
+
         const selected = new Set(state.selectedComponentIds);
         const toMove = state.components.filter(c => selected.has(c.id) || (c.groupId && selected.has(c.groupId)));
         const rest = state.components.filter(c => !selected.has(c.id) && !(c.groupId && selected.has(c.groupId)));
@@ -247,6 +389,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }, [state.components, state.selectedComponentIds]);
 
     const sendToBack = useCallback(() => {
+        const selectedComponents = state.components.filter(c => state.selectedComponentIds.includes(c.id));
+        if (selectedComponents.some(c => c.isLocked)) {
+            alert("Cannot reorder locked components.");
+            return;
+        }
         const selected = new Set(state.selectedComponentIds);
         const toMove = state.components.filter(c => selected.has(c.id) || (c.groupId && selected.has(c.groupId)));
         const rest = state.components.filter(c => !selected.has(c.id) && !(c.groupId && selected.has(c.groupId)));
@@ -259,6 +406,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const allComponentsById = new Map(state.components.map(c => [c.id, c]));
         const selected = state.selectedComponentIds.map(id => allComponentsById.get(id)!).filter(Boolean);
         if (selected.length < 2) return;
+
+        if (selected.some(c => c.isLocked)) {
+            alert("Cannot align locked components. Please unlock them first.");
+            return;
+        }
         
         const first = selected[0];
         
@@ -290,6 +442,32 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     }, [state.theme]);
 
+    const convertImageToComponent = useCallback(async (imageDataUrl: string) => {
+        dispatch({ type: 'CONVERT_IMAGE_START' });
+        try {
+            const componentData = await geminiService.convertImageToComponent(imageDataUrl, state.theme);
+            
+            const canvasElement = document.querySelector('canvas');
+            const canvasWidth = canvasElement ? canvasElement.clientWidth : window.innerWidth * 0.7;
+            const canvasHeight = canvasElement ? canvasElement.clientHeight : window.innerHeight;
+            const centerX = (canvasWidth / 2 - state.pan.x) / state.zoom;
+            const centerY = (canvasHeight / 2 - state.pan.y) / state.zoom;
+            
+            const newComponent: WireframeComponent = {
+                ...componentData,
+                id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
+                x: centerX - (componentData.width || 100) / 2,
+                y: centerY - (componentData.height || 100) / 2,
+            };
+            
+            dispatch({ type: 'CONVERT_IMAGE_SUCCESS', payload: newComponent });
+        } catch (error) {
+            console.error("Failed to convert image to component:", error);
+            alert("Sorry, I couldn't convert that image. Please try again with a clearer image of a single component.");
+            dispatch({ type: 'CONVERT_IMAGE_FAILURE' });
+        }
+    }, [state.theme, state.pan, state.zoom]);
+    
     const generateContent = useCallback(async (prompt: string) => {
         const selected = state.components.filter(c => state.selectedComponentIds.includes(c.id));
         if (!prompt || selected.length === 0) return;
@@ -334,6 +512,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const generateLayout = useCallback(async (layoutType: LayoutSuggestionType) => {
         const selected = state.components.filter(c => state.selectedComponentIds.includes(c.id));
         if (selected.length < 2) return;
+        if (selected.some(c => c.isLocked)) {
+            alert("Cannot generate layout for locked components.");
+            return;
+        }
         dispatch({ type: 'GENERATE_LAYOUT_START' });
         try {
             const layoutUpdates = await geminiService.generateLayoutSuggestions(selected, layoutType);
@@ -345,57 +527,148 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             dispatch({ type: 'GENERATE_LAYOUT_FAILURE' });
         }
     }, [state.components, state.selectedComponentIds]);
-    
+
     const generateTheme = useCallback(async (imageDataUrl: string) => {
         dispatch({ type: 'GENERATE_THEME_START' });
         try {
-            const themePalette = await geminiService.generateThemeFromImage(imageDataUrl);
-            const updatedComponents = state.components.map(c => {
-                let newProps = { ...c.properties };
-                const isDark = state.theme === 'dark';
-                
-                newProps.backgroundColor = isDark ? themePalette.colors.secondary : themePalette.colors.backgroundLight;
-                newProps.borderColor = isDark ? themePalette.colors.primary : themePalette.colors.secondary;
-                newProps.textColor = isDark ? themePalette.colors.textLight : themePalette.colors.textDark;
-                newProps.borderRadius = themePalette.borderRadius;
-                newProps.fontWeight = themePalette.fontWeight;
-
-                if(c.type === 'button') {
-                    newProps.backgroundColor = themePalette.colors.primary;
-                    newProps.borderColor = themePalette.colors.primary;
-                    newProps.textColor = themePalette.colors.textLight;
+            const theme = await geminiService.generateThemeFromImage(imageDataUrl);
+            const { colors, borderRadius, fontWeight } = theme;
+            
+            const updatedComponents = state.components.map(component => {
+                 const newProperties: Partial<ComponentProperties> = {
+                    borderRadius,
+                    fontWeight,
+                 };
+                switch (component.type) {
+                    case 'button':
+                        newProperties.backgroundColor = colors.primary;
+                        newProperties.borderColor = colors.primary;
+                        newProperties.textColor = colors.textLight;
+                        break;
+                    case 'input':
+                        newProperties.backgroundColor = colors.backgroundLight;
+                        newProperties.borderColor = colors.secondary;
+                        newProperties.textColor = colors.textDark;
+                        break;
+                    case 'text':
+                        newProperties.textColor = colors.textDark;
+                        break;
+                    default:
+                        newProperties.backgroundColor = colors.backgroundLight;
+                        newProperties.borderColor = colors.secondary;
+                        break;
                 }
                 
-                return { ...c, properties: newProps };
+                return { ...component, properties: { ...component.properties, ...newProperties } };
             });
+
             dispatch({ type: 'SET_COMPONENTS', payload: updatedComponents });
             dispatch({ type: 'GENERATE_THEME_SUCCESS' });
         } catch (error) {
             console.error("Theme generation failed:", error);
-            alert("Failed to generate theme from image. Please try again.");
             dispatch({ type: 'GENERATE_THEME_FAILURE' });
+            alert("Failed to generate theme from image. Please try again.");
         }
-    }, [state.components, state.theme]);
+    }, [state.components]);
 
-    const value = {
-        state,
-        dispatch,
-        addComponent,
-        addLibraryComponent,
-        selectComponent,
-        toggleLock,
-        groupComponents,
-        ungroupComponents,
-        alignComponents,
-        bringToFront,
-        sendToBack,
-        analyzeSketch,
-        generateContent,
-        generateStyles,
-        applyStyle,
-        generateLayout,
-        generateTheme,
-    };
+    const setViewTransform = useCallback((transform: { zoom?: number; pan?: { x: number; y: number } }) => {
+        dispatch({ type: 'SET_VIEW_TRANSFORM', payload: transform });
+    }, []);
 
-    return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+    const toggleRightSidebar = useCallback(() => {
+        dispatch({ type: 'TOGGLE_RIGHT_SIDEBAR' });
+    }, []);
+
+    const toggleLeftSidebar = useCallback(() => {
+        dispatch({ type: 'TOGGLE_LEFT_SIDEBAR' });
+    }, []);
+
+    const setDrawingSetting = useCallback((key: keyof DrawingSettings, value: number | boolean) => {
+        dispatch({ type: 'SET_DRAWING_SETTING', payload: { key, value } });
+    }, []);
+
+    const allEffectivelySelectedIds = useMemo(() => {
+        const selectedIds = new Set<string>();
+        const allComponentsById = new Map(state.components.map(c => [c.id, c]));
+
+        const addAllChildren = (componentId: string) => {
+            selectedIds.add(componentId);
+            const component = allComponentsById.get(componentId);
+            if (component?.type === 'group' && component.childIds) {
+                component.childIds.forEach(childId => addAllChildren(childId));
+            }
+        };
+
+        state.selectedComponentIds.forEach(id => {
+            addAllChildren(id);
+        });
+        
+        return selectedIds;
+    }, [state.components, state.selectedComponentIds]);
+
+    const duplicateComponents = useCallback(() => {
+        if (state.selectedComponentIds.length === 0) return;
+
+        const allComponentsById = new Map(state.components.map(c => [c.id, c]));
+        // Fix: Use a type guard with `.filter()` to ensure correct type inference and prevent errors with `unknown` types.
+        const componentsToDuplicate = Array.from(allEffectivelySelectedIds)
+            .map(id => allComponentsById.get(id))
+            .filter((c): c is WireframeComponent => !!c);
+        
+        if (componentsToDuplicate.some(c => c.isLocked)) {
+            alert("Cannot duplicate locked components.");
+            return;
+        }
+
+        const idMap = new Map<string, string>();
+        componentsToDuplicate.forEach(c => {
+            idMap.set(c.id, Date.now().toString() + Math.random().toString(36).substring(2, 9));
+        });
+
+        const newComponents = componentsToDuplicate.map(c => ({
+            ...c,
+            id: idMap.get(c.id)!,
+            x: c.x + 20,
+            y: c.y + 20,
+            label: `${c.label} (Copy)`,
+            groupId: c.groupId ? idMap.get(c.groupId) : undefined,
+            childIds: c.childIds?.map(childId => idMap.get(childId)!).filter(Boolean),
+        }));
+
+        const newTopLevelSelectedIds = state.selectedComponentIds.map(id => idMap.get(id)!).filter(Boolean);
+
+        dispatch({ type: 'ADD_COMPONENTS', payload: newComponents });
+        dispatch({ type: 'SET_SELECTED_COMPONENTS', payload: newTopLevelSelectedIds });
+    }, [state.components, state.selectedComponentIds, allEffectivelySelectedIds]);
+
+    return (
+        <AppContext.Provider value={{ 
+            state, 
+            dispatch, 
+            addComponent,
+            addLibraryComponent,
+            selectComponent, 
+            toggleLock,
+            groupComponents,
+            ungroupComponents,
+            alignComponents,
+            bringToFront,
+            sendToBack,
+            analyzeSketch,
+            convertImageToComponent,
+            duplicateComponents,
+            generateContent,
+            generateStyles,
+            applyStyle,
+            generateLayout,
+            generateTheme,
+            setViewTransform,
+            toggleRightSidebar,
+            toggleLeftSidebar,
+            setDrawingSetting,
+            allEffectivelySelectedIds,
+        }}>
+            {children}
+        </AppContext.Provider>
+    );
 };

@@ -1,5 +1,6 @@
 
-import { WireframeComponent, ComponentProperties, ThemeMode } from '../types';
+// Fix: Corrected import path for types.
+import { WireframeComponent, ComponentProperties, ThemeMode } from '../library/types';
 
 type ComponentType = WireframeComponent['type'];
 
