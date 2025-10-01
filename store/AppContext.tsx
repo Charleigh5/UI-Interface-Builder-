@@ -1,11 +1,11 @@
 
 import React, { createContext, useReducer, useCallback, ReactNode, useMemo } from 'react';
-import { WireframeComponent, Tool, Alignment, ComponentProperties, LayoutSuggestionType, ThemeMode, AppAction, DrawingSettings } from '../library/types';
+import { WireframeComponent, Tool, Alignment, ComponentProperties, LayoutSuggestionType, ThemeMode, AppAction, DrawingSettings, MobileState, MobilePanelType } from '../library/types';
 import * as geminiService from '../library/services/geminiService';
 import { getDefaultProperties } from '../utils/componentUtils';
 import { libraryItems } from '../library/definitions';
 
-interface AppState {
+interface AppState extends MobileState {
     currentTool: Tool;
     components: WireframeComponent[];
     selectedComponentIds: string[];
@@ -43,6 +43,11 @@ const initialState: AppState = {
         penOpacity: 1,
         shapeFill: false,
     },
+    // Mobile state
+    isMobileMode: false,
+    isMobileToolbarVisible: false,
+    activeMobilePanel: 'none',
+    toolbarPosition: 'bottom',
 };
 
 const appReducer = (state: AppState, action: AppAction): AppState => {
@@ -212,6 +217,14 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
                     [action.payload.key]: action.payload.value,
                 },
             };
+        case 'SET_MOBILE_MODE':
+            return { ...state, isMobileMode: action.payload };
+        case 'TOGGLE_MOBILE_TOOLBAR':
+            return { ...state, isMobileToolbarVisible: !state.isMobileToolbarVisible };
+        case 'SET_ACTIVE_MOBILE_PANEL':
+            return { ...state, activeMobilePanel: action.payload };
+        case 'SET_MOBILE_TOOLBAR_POSITION':
+            return { ...state, toolbarPosition: action.payload };
         default:
             return state;
     }
@@ -241,6 +254,10 @@ type AppContextType = {
     toggleRightSidebar: () => void;
     toggleLeftSidebar: () => void;
     setDrawingSetting: (key: keyof DrawingSettings, value: number | boolean) => void;
+    setMobileMode: (isMobile: boolean) => void;
+    toggleMobileToolbar: () => void;
+    setActiveMobilePanel: (panel: MobilePanelType) => void;
+    setMobileToolbarPosition: (position: 'bottom' | 'side') => void;
     allEffectivelySelectedIds: Set<string>;
 };
 
@@ -587,6 +604,22 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         dispatch({ type: 'SET_DRAWING_SETTING', payload: { key, value } });
     }, []);
 
+    const setMobileMode = useCallback((isMobile: boolean) => {
+        dispatch({ type: 'SET_MOBILE_MODE', payload: isMobile });
+    }, []);
+
+    const toggleMobileToolbar = useCallback(() => {
+        dispatch({ type: 'TOGGLE_MOBILE_TOOLBAR' });
+    }, []);
+
+    const setActiveMobilePanel = useCallback((panel: MobilePanelType) => {
+        dispatch({ type: 'SET_ACTIVE_MOBILE_PANEL', payload: panel });
+    }, []);
+
+    const setMobileToolbarPosition = useCallback((position: 'bottom' | 'side') => {
+        dispatch({ type: 'SET_MOBILE_TOOLBAR_POSITION', payload: position });
+    }, []);
+
     const allEffectivelySelectedIds = useMemo(() => {
         const selectedIds = new Set<string>();
         const allComponentsById = new Map(state.components.map(c => [c.id, c]));
@@ -666,6 +699,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             toggleRightSidebar,
             toggleLeftSidebar,
             setDrawingSetting,
+            setMobileMode,
+            toggleMobileToolbar,
+            setActiveMobilePanel,
+            setMobileToolbarPosition,
             allEffectivelySelectedIds,
         }}>
             {children}

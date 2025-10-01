@@ -4,11 +4,19 @@ export type Tool = 'select' | 'pen' | 'rectangle' | 'circle' | 'text' | 'button'
 export type Alignment = 'left' | 'center-horizontal' | 'right' | 'top' | 'center-vertical' | 'bottom';
 export type LayoutSuggestionType = 'vertical-stack' | 'horizontal-list' | 'grid';
 export type ThemeMode = 'light' | 'dark';
+export type MobilePanelType = 'none' | 'properties' | 'library' | 'layers';
 
 export interface DrawingSettings {
     penWidth: number;
     penOpacity: number;
     shapeFill: boolean;
+}
+
+export interface MobileState {
+    isMobileMode: boolean;
+    isMobileToolbarVisible: boolean;
+    activeMobilePanel: MobilePanelType;
+    toolbarPosition: 'bottom' | 'side';
 }
 
 export interface ComponentProperties {
@@ -75,4 +83,8 @@ export type AppAction =
     | { type: 'SET_VIEW_TRANSFORM'; payload: { zoom?: number; pan?: { x: number; y: number } } }
     | { type: 'TOGGLE_RIGHT_SIDEBAR' }
     | { type: 'TOGGLE_LEFT_SIDEBAR' }
-    | { type: 'SET_DRAWING_SETTING'; payload: { key: keyof DrawingSettings; value: number | boolean } };
+    | { type: 'SET_DRAWING_SETTING'; payload: { key: keyof DrawingSettings; value: number | boolean } }
+    | { type: 'SET_MOBILE_MODE'; payload: boolean }
+    | { type: 'TOGGLE_MOBILE_TOOLBAR' }
+    | { type: 'SET_ACTIVE_MOBILE_PANEL'; payload: MobilePanelType }
+    | { type: 'SET_MOBILE_TOOLBAR_POSITION'; payload: 'bottom' | 'side' };
