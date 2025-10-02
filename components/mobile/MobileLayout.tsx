@@ -27,10 +27,8 @@ export const MobileLayout: React.FC = () => {
             <main className="flex-1 relative">
                 <Canvas />
                 
-                {/* Mobile-optimized zoom controls positioned in bottom-left with safe area consideration */}
-                <div className="absolute bottom-4 left-4 z-10">
-                    <ZoomControls />
-                </div>
+                {/* Mobile-optimized zoom controls with built-in positioning and safe area support */}
+                <ZoomControls />
 
                 {/* Floating Action Button - primary entry point for mobile interactions */}
                 <FloatingActionButton />
