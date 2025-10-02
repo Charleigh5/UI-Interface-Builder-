@@ -38,7 +38,16 @@ interface MobileToolbarProps {
  * - Swipe-down and tap-outside-to-dismiss functionality
  */
 export const MobileToolbar: React.FC<MobileToolbarProps> = ({ isVisible, onClose }) => {
-    const { state, dispatch, setDrawingSetting, setActiveMobilePanel } = useContext(AppContext);
+    const { 
+        state, 
+        dispatch, 
+        setDrawingSetting, 
+        setActiveMobilePanel,
+        groupComponents,
+        duplicateComponents,
+        bringToFront,
+        sendToBack
+    } = useContext(AppContext);
     const { currentTool, theme, drawingSettings } = state;
 
     const primaryTools = mobileTools.filter(tool => tool.isPrimary);
@@ -46,6 +55,7 @@ export const MobileToolbar: React.FC<MobileToolbarProps> = ({ isVisible, onClose
     
     // State for expandable sections
     const [showSecondaryTools, setShowSecondaryTools] = React.useState(false);
+    const [showAdvancedActions, setShowAdvancedActions] = React.useState(false);
     
     // Swipe gesture handling
     const touchStartY = useRef<number>(0);
@@ -272,6 +282,79 @@ export const MobileToolbar: React.FC<MobileToolbarProps> = ({ isVisible, onClose
                             ))}
                         </div>
                     </div>
+
+                    {/* Advanced Actions - collapsible section */}
+                    {state.selectedComponentIds.length > 0 && (
+                        <div className="mb-6">
+                            <button
+                                onClick={() => setShowAdvancedActions(!showAdvancedActions)}
+                                className="flex items-center justify-between w-full mb-3 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                            >
+                                <h4 className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                                    Advanced Actions
+                                </h4>
+                                <Icon 
+                                    name={showAdvancedActions ? "chevron-up" : "chevron-down"} 
+                                    className="w-4 h-4 text-slate-500 dark:text-slate-400 transition-transform duration-200" 
+                                />
+                            </button>
+                            
+                            <div className={`
+                                grid grid-cols-3 gap-3 transition-all duration-300 ease-in-out overflow-hidden
+                                ${showAdvancedActions ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}
+                            `}>
+                                {state.selectedComponentIds.length >= 2 && (
+                                    <button
+                                        onClick={() => {
+                                            groupComponents();
+                                            onClose();
+                                        }}
+                                        className="flex flex-col items-center justify-center min-h-[44px] p-3 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                                        aria-label="Group selected components"
+                                    >
+                                        <Icon name="group" className="w-6 h-6 mb-1 text-indigo-600 dark:text-indigo-400" />
+                                        <span className="text-xs font-medium">Group</span>
+                                    </button>
+                                )}
+                                
+                                <button
+                                    onClick={() => {
+                                        duplicateComponents();
+                                        onClose();
+                                    }}
+                                    className="flex flex-col items-center justify-center min-h-[44px] p-3 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                                    aria-label="Duplicate selected components"
+                                >
+                                    <Icon name="copy" className="w-6 h-6 mb-1 text-cyan-600 dark:text-cyan-400" />
+                                    <span className="text-xs font-medium">Duplicate</span>
+                                </button>
+
+                                <button
+                                    onClick={() => {
+                                        bringToFront();
+                                        onClose();
+                                    }}
+                                    className="flex flex-col items-center justify-center min-h-[44px] p-3 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                                    aria-label="Bring to front"
+                                >
+                                    <Icon name="bring-to-front" className="w-6 h-6 mb-1 text-amber-600 dark:text-amber-400" />
+                                    <span className="text-xs font-medium">To Front</span>
+                                </button>
+
+                                <button
+                                    onClick={() => {
+                                        sendToBack();
+                                        onClose();
+                                    }}
+                                    className="flex flex-col items-center justify-center min-h-[44px] p-3 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                                    aria-label="Send to back"
+                                >
+                                    <Icon name="send-to-back" className="w-6 h-6 mb-1 text-rose-600 dark:text-rose-400" />
+                                    <span className="text-xs font-medium">To Back</span>
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Context-sensitive tool options */}
                     {(currentTool === 'pen' || currentTool === 'rectangle' || currentTool === 'circle') && (
