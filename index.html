@@ -2,18 +2,97 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- Viewport Configuration - iOS and Android -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+    
+    <!-- iOS Web App Configuration -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Wireframe Designer" />
+    
+    <!-- Android Web App Configuration -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#1e293b" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f8fafc" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0f172a" />
+    
+    <!-- Android Chrome -->
+    <meta name="application-name" content="Wireframe Designer" />
+    
+    <!-- Prevent text size adjustment on orientation change (Android) -->
+    <meta name="format-detection" content="telephone=no" />
+    
+    <!-- PWA Manifest for Android -->
+    <link rel="manifest" href="/manifest.json" />
+    
     <title>AI Wireframe Designer</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Mobile UI Optimizations and Animations -->
+    <link rel="stylesheet" href="/styles/mobile-optimizations.css" />
     <style>
       body {
         font-family: 'Inter', sans-serif;
+        /* Prevent text size adjustment on orientation change (Android/iOS) */
+        -webkit-text-size-adjust: 100%;
+        -moz-text-size-adjust: 100%;
+        -ms-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+        /* Improve touch scrolling performance (Android) */
+        -webkit-overflow-scrolling: touch;
+        /* Prevent pull-to-refresh on Android Chrome */
+        overscroll-behavior-y: contain;
       }
+      
       .dark {
         color-scheme: dark;
+      }
+      
+      /* Android-specific optimizations */
+      @supports (-webkit-touch-callout: none) {
+        /* iOS-specific styles */
+        body {
+          /* Prevent iOS Safari bounce effect */
+          position: fixed;
+          width: 100%;
+          height: 100%;
+        }
+      }
+      
+      /* Improve touch target accessibility (Android/iOS) */
+      button, a, [role="button"] {
+        -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+        tap-highlight-color: rgba(0, 0, 0, 0.1);
+      }
+      
+      /* Prevent text selection during touch interactions (Android/iOS) */
+      .touch-manipulation {
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+        touch-action: manipulation;
+      }
+      
+      /* Optimize canvas rendering (Android/iOS) */
+      canvas {
+        -webkit-transform: translateZ(0);
+        transform: translateZ(0);
+        will-change: transform;
+      }
+      
+      /* Android Chrome address bar handling */
+      @media screen and (max-width: 768px) {
+        html, body, #root {
+          height: 100vh;
+          height: -webkit-fill-available;
+          overflow: hidden;
+        }
       }
     </style>
   <script type="importmap">
@@ -30,5 +109,25 @@
   <body class="bg-slate-50 antialiased dark:bg-slate-950">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
+    
+    <!-- Service Worker Registration for PWA (Android/iOS) -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/service-worker.js')
+            .then((registration) => {
+              console.log('ServiceWorker registered:', registration.scope);
+              
+              // Check for updates periodically
+              setInterval(() => {
+                registration.update();
+              }, 60000); // Check every minute
+            })
+            .catch((error) => {
+              console.log('ServiceWorker registration failed:', error);
+            });
+        });
+      }
+    </script>
   </body>
 </html>

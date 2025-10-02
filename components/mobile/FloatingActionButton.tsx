@@ -1,6 +1,7 @@
 import React, { useContext } from 'react';
 import { Icon } from '../Icon';
 import { AppContext } from '../../store/AppContext';
+import { useSafeAreaInsets } from '../../hooks/useSafeAreaInsets';
 
 /**
  * FloatingActionButton serves as the primary entry point for mobile interactions.
@@ -10,10 +11,12 @@ import { AppContext } from '../../store/AppContext';
  * - Context-sensitive functionality (toolbar toggle by default, properties when component selected)
  * - Visual indicator badge for active selections or notifications
  * - Touch-optimized size (56px) following Material Design guidelines
+ * - Respects iOS safe areas (notch, home indicator)
  */
 export const FloatingActionButton: React.FC = () => {
     const { state, toggleMobileToolbar, setActiveMobilePanel } = useContext(AppContext);
     const { selectedComponentIds, isMobileToolbarVisible } = state;
+    const safeAreaInsets = useSafeAreaInsets();
 
     const hasSelection = selectedComponentIds.length > 0;
 
@@ -43,7 +46,7 @@ export const FloatingActionButton: React.FC = () => {
         <button
             onClick={handleFABClick}
             className={`
-                fixed bottom-6 right-6 z-30
+                fixed z-30
                 w-14 h-14 rounded-full shadow-lg
                 flex items-center justify-center
                 transition-all duration-300 ease-in-out
@@ -56,6 +59,10 @@ export const FloatingActionButton: React.FC = () => {
                 hover:shadow-xl active:scale-95
                 focus:outline-none focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800
             `}
+            style={{
+                bottom: `${24 + safeAreaInsets.bottom}px`,
+                right: `${24 + safeAreaInsets.right}px`,
+            }}
             aria-label={getAriaLabel()}
         >
             <Icon 

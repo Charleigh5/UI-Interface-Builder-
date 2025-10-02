@@ -7,6 +7,7 @@ import { FloatingActionButton } from './FloatingActionButton';
 import { MobilePropertiesPanel } from './MobilePropertiesPanel';
 import { MobileLibraryPanel } from './MobileLibraryPanel';
 import { MobileLayersPanel } from './MobileLayersPanel';
+import { useSafeAreaInsets } from '../../hooks/useSafeAreaInsets';
 
 /**
  * MobileLayout provides the full-screen canvas experience for mobile devices.
@@ -15,14 +16,28 @@ import { MobileLayersPanel } from './MobileLayersPanel';
  * - Full viewport canvas with no margins or padding
  * - Mobile-optimized zoom controls positioning
  * - Touch-friendly interface design
+ * - Safe area inset handling for iOS devices (notch, home indicator)
+ * - Android display cutout and navigation bar support
  * - Maintains all existing canvas functionality
+ * 
+ * Platform Support:
+ * - iOS: Safari, Chrome, PWA
+ * - Android: Chrome, Firefox, Samsung Internet, PWA
  */
 export const MobileLayout: React.FC = () => {
     const { state, toggleMobileToolbar, setActiveMobilePanel } = useContext(AppContext);
     const { isMobileToolbarVisible, activeMobilePanel } = state;
+    const safeAreaInsets = useSafeAreaInsets();
 
     return (
-        <div className="flex flex-col h-screen w-screen bg-slate-100 dark:bg-slate-900 overflow-hidden">
+        <div 
+            className="flex flex-col h-screen w-screen bg-slate-100 dark:bg-slate-900 overflow-hidden"
+            style={{
+                paddingTop: `${safeAreaInsets.top}px`,
+                paddingLeft: `${safeAreaInsets.left}px`,
+                paddingRight: `${safeAreaInsets.right}px`,
+            }}
+        >
             {/* Full-screen canvas container - no padding for maximum canvas area */}
             <main className="flex-1 relative">
                 <Canvas />

@@ -6,9 +6,19 @@ import { useMobileDetection } from './hooks/useMobileDetection';
 import { ResponsiveLayoutContainer } from './components/ResponsiveLayoutContainer';
 import { WebLayout } from './components/web/WebLayout';
 import { MobileLayout } from './components/mobile/MobileLayout';
+import { getPerformanceMonitor } from './utils/performanceMonitor';
 
 export default function App() {
-    const { state, duplicateComponents, setMobileMode } = useContext(AppContext);
+    const { 
+        state, 
+        duplicateComponents, 
+        setMobileMode,
+        dispatch,
+        groupComponents,
+        ungroupComponents,
+        bringToFront,
+        sendToBack
+    } = useContext(AppContext);
     const isMobile = useMobileDetection();
 
     // Theme management - applies to both mobile and web UI
@@ -18,23 +28,135 @@ export default function App() {
     }, [state.theme]);
 
     // Mobile mode detection and state synchronization
+    // Ensures canvas state is preserved when switching between mobile/web UI modes
     useEffect(() => {
         setMobileMode(isMobile);
     }, [isMobile, setMobileMode]);
 
+    // Handle orientation changes for mobile devices
+    // Ensures proper layout recalculation on orientation change
+    useEffect(() => {
+        const handleOrientationChange = () => {
+            // Force a re-render to recalculate canvas dimensions
+            window.dispatchEvent(new Event('resize'));
+        };
+
+        window.addEventListener('orientationchange', handleOrientationChange);
+        return () => {
+            window.removeEventListener('orientationchange', handleOrientationChange);
+        };
+    }, []);
+
+    // Performance monitoring for mobile UI
+    // Ensures 60fps animations and optimizes for battery efficiency
+    useEffect(() => {
+        if (!isMobile) return;
+
+        const monitor = getPerformanceMonitor({
+            enableLogging: process.env.NODE_ENV === 'development',
+        });
+
+        monitor.start();
+
+        // Apply optimizations every 5 seconds
+        const interval = setInterval(() => {
+            monitor.applyOptimizations();
+        }, 5000);
+
+        return () => {
+            clearInterval(interval);
+            monitor.stop();
+        };
+    }, [isMobile]);
+
     // Global keyboard shortcuts - work in both mobile and web UI
+    // Supports mobile devices with external keyboards
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'd') {
+            const isMod = e.metaKey || e.ctrlKey;
+            const key = e.key.toLowerCase();
+
+            // Prevent default for all our shortcuts
+            const shouldPreventDefault = () => {
+                if (isMod && key === 'd') return true;
+                if (isMod && key === 'g') return true;
+                if (isMod && e.shiftKey && key === 'g') return true;
+                if (isMod && key === ']') return true;
+                if (isMod && key === '[') return true;
+                if (key === 'delete' || key === 'backspace') return state.selectedComponentIds.length > 0;
+                return false;
+            };
+
+            if (shouldPreventDefault()) {
                 e.preventDefault();
+            }
+
+            // Duplicate: Cmd/Ctrl + D
+            if (isMod && key === 'd') {
                 duplicateComponents();
             }
+            
+            // Group: Cmd/Ctrl + G
+            if (isMod && !e.shiftKey && key === 'g') {
+                if (state.selectedComponentIds.length >= 2) {
+                    groupComponents();
+                }
+            }
+            
+            // Ungroup: Cmd/Ctrl + Shift + G
+            if (isMod && e.shiftKey && key === 'g') {
+                if (state.selectedComponentIds.length === 1) {
+                    const component = state.components.find(c => c.id === state.selectedComponentIds[0]);
+                    if (component?.type === 'group') {
+                        ungroupComponents();
+                    }
+                }
+            }
+            
+            // Bring to Front: Cmd/Ctrl + ]
+            if (isMod && key === ']') {
+                if (state.selectedComponentIds.length > 0) {
+                    bringToFront();
+                }
+            }
+            
+            // Send to Back: Cmd/Ctrl + [
+            if (isMod && key === '[') {
+                if (state.selectedComponentIds.length > 0) {
+                    sendToBack();
+                }
+            }
+            
+            // Delete: Delete or Backspace
+            if ((key === 'delete' || key === 'backspace') && state.selectedComponentIds.length > 0) {
+                // Only delete if not focused on an input element
+                const activeElement = document.activeElement;
+                const isInputFocused = activeElement?.tagName === 'INPUT' || 
+                                      activeElement?.tagName === 'TEXTAREA' ||
+                                      activeElement?.getAttribute('contenteditable') === 'true';
+                
+                if (!isInputFocused) {
+                    state.selectedComponentIds.forEach(id => {
+                        dispatch({ type: 'DELETE_COMPONENT', payload: id });
+                    });
+                }
+            }
         };
+
         window.addEventListener('keydown', handleKeyDown);
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [duplicateComponents]);
+    }, [
+        duplicateComponents, 
+        groupComponents, 
+        ungroupComponents, 
+        bringToFront, 
+        sendToBack, 
+        dispatch,
+        state.selectedComponentIds,
+        state.components
+    ]);
 
     return (
         <ResponsiveLayoutContainer
