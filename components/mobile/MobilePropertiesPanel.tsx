@@ -9,103 +9,102 @@ interface MobilePropertiesPanelProps {
     onClose: () => void;
 }
 
+const PropertyInput: React.FC<{
+    label: string;
+    children: React.ReactNode;
+}> = ({ label, children }) => (
+    <div>
+        <label className="block text-sm font-medium text-slate-700 mb-2 dark:text-slate-300">{label}</label>
+        {children}
+    </div>
+);
+
 /**
- * MobilePropertiesPanel provides a full-screen modal interface for editing component properties.
+ * MobilePropertiesPanel provides a full-screen modal interface for editing component properties on mobile devices.
  * 
- * Architecture Features:
- * - Full-screen modal optimized for mobile touch interaction
- * - Swipe-down-to-dismiss gesture support
- * - Touch-optimized form controls with proper spacing
- * - Maintains complete feature parity with desktop PropertiesPanel
- * - Accessible design with proper ARIA labels and keyboard navigation
- * - Performance optimized with efficient re-renders and gesture handling
+ * Design Features:
+ * - Full-screen modal with header and close button
+ * - Touch-optimized controls with larger touch targets
+ * - Swipe-down-to-dismiss functionality
+ * - Identical functionality to desktop properties panel
+ * - Smooth slide-up animation
  */
-// Mobile-optimized CSS classes for form controls
-const mobileInputClasses = "w-full px-4 py-3 text-base border-2 border-slate-300 dark:border-slate-600 rounded-xl shadow-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 transition-colors disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-700";
-
-const mobileSelectClasses = "w-full px-4 py-3 text-base border-2 border-slate-300 dark:border-slate-600 rounded-xl shadow-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 transition-colors disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-700";
-
-const mobileTextareaClasses = "w-full px-4 py-3 text-base border-2 border-slate-300 dark:border-slate-600 rounded-xl shadow-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-800 transition-colors resize-none disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-700";
-
 export const MobilePropertiesPanel: React.FC<MobilePropertiesPanelProps> = ({ isVisible, onClose }) => {
     const { state, dispatch, ungroupComponents } = useContext(AppContext);
-    const { components, selectedComponentIds } = state;
-    
-    // Get the selected component (only show properties for single selection)
-    const selectedComponent = selectedComponentIds.length === 1 
-        ? components.find(c => c.id === selectedComponentIds[0]) || null 
-        : null;
-
-    // Local state for image generation
     const [imagePrompt, setImagePrompt] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     
     // Swipe gesture handling
     const touchStartY = useRef<number>(0);
     const panelRef = useRef<HTMLDivElement>(null);
-    const [isDragging, setIsDragging] = useState(false);
 
-    // Component update handlers
-    const handleUpdateComponent = useCallback((id: string, updates: Partial<WireframeComponent>) => {
+    // Get the selected component
+    const selectedComponent = state.components.find(c => 
+        state.selectedComponentIds.length === 1 && c.id === state.selectedComponentIds[0]
+    );
+
+    const handleUpdateComponent = (id: string, updates: Partial<WireframeComponent>) => {
         dispatch({ type: 'UPDATE_COMPONENT', payload: { id, updates } });
-    }, [dispatch]);
+    };
 
-    const handlePropertyChange = useCallback(<K extends keyof ComponentProperties,>(
+    const handlePropertyChange = <K extends keyof ComponentProperties,>(
         key: K, 
         value: ComponentProperties[K]
     ) => {
         if (!selectedComponent) return;
         const newProperties = { ...selectedComponent.properties, [key]: value };
         handleUpdateComponent(selectedComponent.id, { properties: newProperties });
-    }, [selectedComponent, handleUpdateComponent]);
+    };
 
-    // Image generation handler
-    const handleGenerateImage = useCallback(async () => {
+    const handleGenerateImage = async () => {
         if (!imagePrompt || isGenerating || !selectedComponent) return;
         setIsGenerating(true);
         try {
-            const base64Data = await generateImage(imagePrompt, selectedComponent.width, selectedComponent.height);
+            const base64Data = await generateImage(
+                imagePrompt, 
+                selectedComponent.width, 
+                selectedComponent.height
+            );
             handlePropertyChange('imageDataUrl', `data:image/png;base64,${base64Data}`);
-            setImagePrompt(''); // Clear prompt after successful generation
         } catch (error) {
-            console.error('Image generation failed:', error);
-            alert('Failed to generate image. Please try again.');
+            console.error(error);
+            alert('Failed to generate image. Please check the console for details.');
         } finally {
             setIsGenerating(false);
         }
-    }, [imagePrompt, isGenerating, selectedComponent, handlePropertyChange]);
+    };
 
-    // Swipe gesture handlers for natural mobile interaction
+    const handleBackdropClick = (e: React.MouseEvent) => {
+        if (e.target === e.currentTarget) {
+            onClose();
+        }
+    };
+
+    // Swipe down gesture to close panel
     const handleTouchStart = useCallback((e: React.TouchEvent) => {
         touchStartY.current = e.touches[0].clientY;
-        setIsDragging(false);
     }, []);
 
     const handleTouchMove = useCallback((e: React.TouchEvent) => {
         const currentY = e.touches[0].clientY;
         const deltaY = currentY - touchStartY.current;
         
-        // Only allow swipe down from top of panel
         if (deltaY > 0 && panelRef.current?.scrollTop === 0) {
-            setIsDragging(true);
             e.preventDefault();
         }
     }, []);
 
     const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-        if (!isDragging) return;
-        
         const currentY = e.changedTouches[0].clientY;
         const deltaY = currentY - touchStartY.current;
-        const swipeThreshold = 120; // Minimum swipe distance to trigger close
+        const swipeThreshold = 100;
         
-        if (deltaY > swipeThreshold) {
+        if (deltaY > swipeThreshold && panelRef.current?.scrollTop === 0) {
             onClose();
         }
-        setIsDragging(false);
-    }, [isDragging, onClose]);
+    }, [onClose]);
 
-    // Keyboard support for accessibility
+    // Keyboard support - close on Escape key
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape' && isVisible) {
@@ -115,78 +114,202 @@ export const MobilePropertiesPanel: React.FC<MobilePropertiesPanelProps> = ({ is
 
         if (isVisible) {
             document.addEventListener('keydown', handleKeyDown);
-            // Prevent body scroll when modal is open
-            document.body.style.overflow = 'hidden';
-            return () => {
-                document.removeEventListener('keydown', handleKeyDown);
-                document.body.style.overflow = 'unset';
-            };
+            return () => document.removeEventListener('keydown', handleKeyDown);
         }
     }, [isVisible, onClose]);
 
-    // Backdrop click handler
-    const handleBackdropClick = useCallback((e: React.MouseEvent) => {
-        if (e.target === e.currentTarget) {
-            onClose();
-        }
-    }, [onClose]);
-
-    // Don't render if not visible or no component selected
     if (!isVisible || !selectedComponent) return null;
 
     const isLocked = !!selectedComponent.isLocked;
 
+    const renderCommonFields = () => (
+        <>
+            <PropertyInput label="Background Color">
+                <input 
+                    type="color" 
+                    value={selectedComponent.properties.backgroundColor || '#ffffff'} 
+                    onChange={e => handlePropertyChange('backgroundColor', e.target.value)} 
+                    className="w-full h-12 p-1 border border-slate-300 dark:border-slate-600 rounded-lg cursor-pointer disabled:opacity-50" 
+                    disabled={isLocked} 
+                />
+            </PropertyInput>
+            <PropertyInput label="Border Color">
+                <input 
+                    type="color" 
+                    value={selectedComponent.properties.borderColor || '#cbd5e1'} 
+                    onChange={e => handlePropertyChange('borderColor', e.target.value)} 
+                    className="w-full h-12 p-1 border border-slate-300 dark:border-slate-600 rounded-lg cursor-pointer disabled:opacity-50" 
+                    disabled={isLocked} 
+                />
+            </PropertyInput>
+            <div className="grid grid-cols-2 gap-4">
+                <PropertyInput label="Border Width">
+                    <input 
+                        type="number" 
+                        min="0" 
+                        value={selectedComponent.properties.borderWidth ?? 1} 
+                        onChange={e => handlePropertyChange('borderWidth', parseInt(e.target.value))} 
+                        className="w-full text-base p-3 border border-slate-300 rounded-lg shadow-sm disabled:bg-slate-100 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200 dark:disabled:bg-slate-700/50" 
+                        disabled={isLocked} 
+                    />
+                </PropertyInput>
+                <PropertyInput label="Border Radius">
+                    <input 
+                        type="number" 
+                        min="0" 
+                        value={selectedComponent.properties.borderRadius ?? 4} 
+                        onChange={e => handlePropertyChange('borderRadius', parseInt(e.target.value))} 
+                        className="w-full text-base p-3 border border-slate-300 rounded-lg shadow-sm disabled:bg-slate-100 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200 dark:disabled:bg-slate-700/50" 
+                        disabled={isLocked} 
+                    />
+                </PropertyInput>
+            </div>
+        </>
+    );
+
+    const renderTypeSpecificFields = () => {
+        switch (selectedComponent.type) {
+            case 'button':
+                return (
+                    <PropertyInput label="Button Text">
+                        <input 
+                            type="text" 
+                            value={selectedComponent.properties.buttonText || 'Button'} 
+                            onChange={e => handlePropertyChange('buttonText', e.target.value)} 
+                            className="w-full text-base p-3 border border-slate-300 rounded-lg shadow-sm dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200" 
+                            disabled={isLocked}
+                        />
+                    </PropertyInput>
+                );
+            case 'input':
+                return (
+                    <PropertyInput label="Placeholder Text">
+                        <input 
+                            type="text" 
+                            value={selectedComponent.properties.placeholder || 'Placeholder'} 
+                            onChange={e => handlePropertyChange('placeholder', e.target.value)} 
+                            className="w-full text-base p-3 border border-slate-300 rounded-lg shadow-sm dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200" 
+                            disabled={isLocked}
+                        />
+                    </PropertyInput>
+                );
+            case 'text':
+                return (
+                    <>
+                        <PropertyInput label="Text Color">
+                            <input 
+                                type="color" 
+                                value={selectedComponent.properties.textColor || '#1e293b'} 
+                                onChange={e => handlePropertyChange('textColor', e.target.value)} 
+                                className="w-full h-12 p-1 border border-slate-300 dark:border-slate-600 rounded-lg cursor-pointer" 
+                                disabled={isLocked}
+                            />
+                        </PropertyInput>
+                        <div className="grid grid-cols-2 gap-4">
+                            <PropertyInput label="Font Size">
+                                <input 
+                                    type="number" 
+                                    min="1" 
+                                    value={selectedComponent.properties.fontSize || 16} 
+                                    onChange={e => handlePropertyChange('fontSize', parseInt(e.target.value))} 
+                                    className="w-full text-base p-3 border border-slate-300 rounded-lg shadow-sm dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200" 
+                                    disabled={isLocked}
+                                />
+                            </PropertyInput>
+                            <PropertyInput label="Font Weight">
+                                <select 
+                                    value={selectedComponent.properties.fontWeight || 'normal'} 
+                                    onChange={e => handlePropertyChange('fontWeight', e.target.value)} 
+                                    className="w-full text-base p-3 border border-slate-300 rounded-lg shadow-sm dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200" 
+                                    disabled={isLocked}
+                                >
+                                    <option value="normal">Normal</option>
+                                    <option value="bold">Bold</option>
+                                    <option value="500">500</option>
+                                    <option value="600">600</option>
+                                </select>
+                            </PropertyInput>
+                        </div>
+                    </>
+                );
+            case 'image':
+                return (
+                    <div className="flex flex-col gap-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                        <PropertyInput label="Generate Image with AI">
+                            <textarea
+                                value={imagePrompt}
+                                onChange={e => setImagePrompt(e.target.value)}
+                                placeholder="e.g., A photorealistic portrait of a person"
+                                className="w-full text-base p-3 border border-slate-300 rounded-lg shadow-sm h-24 disabled:bg-slate-100 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200 dark:placeholder-slate-400"
+                                disabled={isLocked || isGenerating}
+                            />
+                        </PropertyInput>
+                        <button
+                            onClick={handleGenerateImage}
+                            disabled={isLocked || isGenerating || !imagePrompt}
+                            className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-blue-600 text-white rounded-lg font-semibold shadow-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:bg-slate-300 disabled:cursor-not-allowed dark:disabled:bg-slate-600 min-h-[48px]"
+                        >
+                            {isGenerating ? (
+                                <>
+                                    <Icon name="loader" className="w-5 h-5 animate-spin" />
+                                    Generating...
+                                </>
+                            ) : (
+                                <>
+                                    <Icon name="sparkles" className="w-5 h-5" />
+                                    Generate Image
+                                </>
+                            )}
+                        </button>
+                    </div>
+                );
+            default:
+                return null;
+        }
+    };
+
     return (
         <>
-            {/* Full-screen backdrop */}
+            {/* Semi-transparent backdrop */}
             <div 
-                className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
+                className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50"
                 onClick={handleBackdropClick}
-                aria-hidden="true"
             />
             
             {/* Full-screen modal panel */}
             <div 
                 ref={panelRef}
                 className={`
-                    fixed inset-0 z-50 bg-slate-50 dark:bg-slate-900
+                    fixed inset-0 z-50
+                    bg-white dark:bg-slate-900
                     transform transition-transform duration-300 ease-in-out
                     ${isVisible ? 'translate-y-0' : 'translate-y-full'}
-                    overflow-y-auto
+                    flex flex-col
+                    overflow-hidden
                 `}
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="properties-title"
             >
-                {/* Header with swipe indicator */}
-                <div className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
-                    {/* Swipe indicator */}
+                {/* Header */}
+                <div className="flex-shrink-0 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+                    {/* Swipe handle indicator */}
                     <div className="flex justify-center py-3">
                         <div className="w-12 h-1 bg-slate-300 dark:bg-slate-600 rounded-full" />
                     </div>
                     
-                    {/* Header content */}
-                    <div className="flex items-center justify-between px-6 pb-4">
+                    <div className="flex items-center justify-between px-4 pb-4">
                         <div>
-                            <h1 id="properties-title" className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+                            <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
                                 Properties
-                            </h1>
+                            </h2>
                             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                                {selectedComponent.type} • {selectedComponent.label}
-                                {isLocked && (
-                                    <span className="ml-2 inline-flex items-center">
-                                        <Icon name="lock" className="w-4 h-4 text-amber-500" />
-                                        <span className="ml-1 text-amber-600 dark:text-amber-400">Locked</span>
-                                    </span>
-                                )}
+                                {selectedComponent.label || selectedComponent.type}
                             </p>
                         </div>
                         <button
                             onClick={onClose}
-                            className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                            className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
                             aria-label="Close properties panel"
                         >
                             <Icon name="x" className="w-6 h-6 text-slate-600 dark:text-slate-300" />
@@ -194,293 +317,67 @@ export const MobilePropertiesPanel: React.FC<MobilePropertiesPanelProps> = ({ is
                     </div>
                 </div>
 
-                {/* Properties content */}
-                <div className="px-6 py-6 space-y-8">
-                    {/* Transform Properties */}
-                    <PropertySection title="Transform" icon="move">
+                {/* Scrollable content */}
+                <div className="flex-1 overflow-y-auto px-4 py-6">
+                    <div className="flex flex-col gap-6 max-w-2xl mx-auto">
+                        {/* Dimensions and Rotation */}
                         <div className="grid grid-cols-2 gap-4">
-                            <PropertyInput label="Width" disabled={isLocked}>
+                            <PropertyInput label="Width">
                                 <input 
                                     type="number" 
                                     value={Math.round(selectedComponent.width)} 
-                                    onChange={e => handleUpdateComponent(selectedComponent.id, { width: parseInt(e.target.value) || 0 })}
-                                    className={mobileInputClasses}
-                                    disabled={isLocked}
+                                    onChange={e => handleUpdateComponent(selectedComponent.id, { width: parseInt(e.target.value)})} 
+                                    className="w-full text-base p-3 border border-slate-300 rounded-lg shadow-sm disabled:bg-slate-100 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200 dark:disabled:bg-slate-700/50" 
+                                    disabled={isLocked} 
                                 />
                             </PropertyInput>
-                            <PropertyInput label="Height" disabled={isLocked}>
+                            <PropertyInput label="Height">
                                 <input 
                                     type="number" 
                                     value={Math.round(selectedComponent.height)} 
-                                    onChange={e => handleUpdateComponent(selectedComponent.id, { height: parseInt(e.target.value) || 0 })}
-                                    className={mobileInputClasses}
-                                    disabled={isLocked}
+                                    onChange={e => handleUpdateComponent(selectedComponent.id, { height: parseInt(e.target.value)})} 
+                                    className="w-full text-base p-3 border border-slate-300 rounded-lg shadow-sm disabled:bg-slate-100 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200 dark:disabled:bg-slate-700/50" 
+                                    disabled={isLocked} 
                                 />
                             </PropertyInput>
                         </div>
-                        <PropertyInput label="Rotation (degrees)" disabled={isLocked}>
+                        
+                        <PropertyInput label="Rotation (degrees)">
                             <input 
                                 type="number" 
                                 value={Math.round(selectedComponent.rotation || 0)} 
-                                onChange={e => handleUpdateComponent(selectedComponent.id, { rotation: parseInt(e.target.value) || 0 })}
-                                className={mobileInputClasses}
-                                disabled={isLocked}
+                                onChange={e => handleUpdateComponent(selectedComponent.id, { rotation: parseInt(e.target.value)})} 
+                                className="w-full text-base p-3 border border-slate-300 rounded-lg shadow-sm disabled:bg-slate-100 dark:bg-slate-700 dark:border-slate-600 dark:text-slate-200 dark:disabled:bg-slate-700/50" 
+                                disabled={isLocked} 
                             />
                         </PropertyInput>
-                    </PropertySection>
 
-                    {/* Appearance Properties (for non-group components) */}
-                    {selectedComponent.type !== 'group' && (
-                        <PropertySection title="Appearance" icon="palette">
-                            <PropertyInput label="Background Color" disabled={isLocked}>
-                                <div className="flex items-center space-x-3">
-                                    <input 
-                                        type="color" 
-                                        value={selectedComponent.properties.backgroundColor || '#ffffff'} 
-                                        onChange={e => handlePropertyChange('backgroundColor', e.target.value)}
-                                        className="w-12 h-12 rounded-lg border-2 border-slate-300 dark:border-slate-600 cursor-pointer disabled:opacity-50"
-                                        disabled={isLocked}
-                                    />
-                                    <input 
-                                        type="text" 
-                                        value={selectedComponent.properties.backgroundColor || '#ffffff'} 
-                                        onChange={e => handlePropertyChange('backgroundColor', e.target.value)}
-                                        className={`${mobileInputClasses} flex-1`}
-                                        placeholder="#ffffff"
-                                        disabled={isLocked}
-                                    />
-                                </div>
-                            </PropertyInput>
-                            
-                            <PropertyInput label="Border Color" disabled={isLocked}>
-                                <div className="flex items-center space-x-3">
-                                    <input 
-                                        type="color" 
-                                        value={selectedComponent.properties.borderColor || '#cbd5e1'} 
-                                        onChange={e => handlePropertyChange('borderColor', e.target.value)}
-                                        className="w-12 h-12 rounded-lg border-2 border-slate-300 dark:border-slate-600 cursor-pointer disabled:opacity-50"
-                                        disabled={isLocked}
-                                    />
-                                    <input 
-                                        type="text" 
-                                        value={selectedComponent.properties.borderColor || '#cbd5e1'} 
-                                        onChange={e => handlePropertyChange('borderColor', e.target.value)}
-                                        className={`${mobileInputClasses} flex-1`}
-                                        placeholder="#cbd5e1"
-                                        disabled={isLocked}
-                                    />
-                                </div>
-                            </PropertyInput>
+                        {/* Common styling fields */}
+                        {selectedComponent.type !== 'group' && renderCommonFields()}
+                        
+                        {/* Type-specific fields */}
+                        {renderTypeSpecificFields()}
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <PropertyInput label="Border Width" disabled={isLocked}>
-                                    <input 
-                                        type="number" 
-                                        min="0" 
-                                        value={selectedComponent.properties.borderWidth ?? 1} 
-                                        onChange={e => handlePropertyChange('borderWidth', parseInt(e.target.value) || 0)}
-                                        className={mobileInputClasses}
-                                        disabled={isLocked}
-                                    />
-                                </PropertyInput>
-                                <PropertyInput label="Border Radius" disabled={isLocked}>
-                                    <input 
-                                        type="number" 
-                                        min="0" 
-                                        value={selectedComponent.properties.borderRadius ?? 4} 
-                                        onChange={e => handlePropertyChange('borderRadius', parseInt(e.target.value) || 0)}
-                                        className={mobileInputClasses}
-                                        disabled={isLocked}
-                                    />
-                                </PropertyInput>
-                            </div>
-                        </PropertySection>
-                    )}
-
-                    {/* Type-specific Properties */}
-                    {renderTypeSpecificProperties(selectedComponent, handlePropertyChange, isLocked)}
-
-                    {/* Image Generation (for image components) */}
-                    {selectedComponent.type === 'image' && (
-                        <PropertySection title="AI Image Generation" icon="sparkles">
-                            <PropertyInput label="Describe the image you want to generate" disabled={isLocked || isGenerating}>
-                                <textarea
-                                    value={imagePrompt}
-                                    onChange={e => setImagePrompt(e.target.value)}
-                                    placeholder="e.g., A photorealistic portrait of a person, professional headshot, studio lighting"
-                                    className={mobileTextareaClasses}
-                                    rows={4}
-                                    disabled={isLocked || isGenerating}
-                                />
-                            </PropertyInput>
+                        {/* Ungroup button for groups */}
+                        {selectedComponent.type === 'group' && (
                             <button
-                                onClick={handleGenerateImage}
-                                disabled={isLocked || isGenerating || !imagePrompt.trim()}
-                                className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-blue-600 text-white rounded-xl font-semibold shadow-lg hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50 disabled:bg-slate-400 disabled:cursor-not-allowed"
-                            >
-                                {isGenerating ? (
-                                    <>
-                                        <Icon name="loader" className="w-6 h-6 animate-spin" />
-                                        Generating Image...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Icon name="sparkles" className="w-6 h-6" />
-                                        Generate Image
-                                    </>
-                                )}
-                            </button>
-                        </PropertySection>
-                    )}
-
-                    {/* Group Actions */}
-                    {selectedComponent.type === 'group' && (
-                        <PropertySection title="Group Actions" icon="group">
-                            <button
-                                onClick={ungroupComponents}
+                                onClick={() => {
+                                    ungroupComponents();
+                                    onClose();
+                                }}
+                                className="w-full flex items-center justify-center gap-2 px-6 py-4 mt-4 bg-slate-600 text-white rounded-lg font-semibold shadow-md hover:bg-slate-700 transition-colors dark:bg-slate-700 dark:hover:bg-slate-600 min-h-[48px]"
                                 disabled={isLocked}
-                                className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-slate-600 dark:bg-slate-700 text-white rounded-xl font-semibold shadow-lg hover:bg-slate-700 dark:hover:bg-slate-600 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                <Icon name="ungroup" className="w-6 h-6" />
+                                <Icon name="ungroup" className="w-5 h-5" />
                                 Ungroup Components
                             </button>
-                        </PropertySection>
-                    )}
-
+                        )}
+                    </div>
+                    
                     {/* Safe area padding for devices with home indicators */}
                     <div className="h-8" />
                 </div>
             </div>
         </>
     );
-};
-
-// Helper Components for consistent styling and structure
-
-interface PropertySectionProps {
-    title: string;
-    icon: React.ComponentProps<typeof Icon>['name'];
-    children: React.ReactNode;
-}
-
-const PropertySection: React.FC<PropertySectionProps> = ({ title, icon, children }) => (
-    <div className="space-y-4">
-        <div className="flex items-center space-x-2">
-            <Icon name={icon} className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
-        </div>
-        <div className="space-y-4">
-            {children}
-        </div>
-    </div>
-);
-
-interface PropertyInputProps {
-    label: string;
-    children: React.ReactNode;
-    disabled?: boolean;
-}
-
-const PropertyInput: React.FC<PropertyInputProps> = ({ label, children, disabled }) => (
-    <div className="space-y-2">
-        <label className={`block text-sm font-medium ${disabled ? 'text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-300'}`}>
-            {label}
-        </label>
-        {children}
-    </div>
-);
-
-// Type-specific property renderers
-const renderTypeSpecificProperties = (
-    component: WireframeComponent,
-    handlePropertyChange: <K extends keyof ComponentProperties>(key: K, value: ComponentProperties[K]) => void,
-    isLocked: boolean
-) => {
-    switch (component.type) {
-        case 'button':
-            return (
-                <PropertySection title="Button Content" icon="button">
-                    <PropertyInput label="Button Text" disabled={isLocked}>
-                        <input 
-                            type="text" 
-                            value={component.properties.buttonText || 'Button'} 
-                            onChange={e => handlePropertyChange('buttonText', e.target.value)}
-                            className={mobileInputClasses}
-                            placeholder="Button"
-                            disabled={isLocked}
-                        />
-                    </PropertyInput>
-                </PropertySection>
-            );
-
-        case 'input':
-            return (
-                <PropertySection title="Input Settings" icon="input">
-                    <PropertyInput label="Placeholder Text" disabled={isLocked}>
-                        <input 
-                            type="text" 
-                            value={component.properties.placeholder || 'Placeholder'} 
-                            onChange={e => handlePropertyChange('placeholder', e.target.value)}
-                            className={mobileInputClasses}
-                            placeholder="Placeholder"
-                            disabled={isLocked}
-                        />
-                    </PropertyInput>
-                </PropertySection>
-            );
-
-        case 'text':
-            return (
-                <PropertySection title="Text Styling" icon="text">
-                    <PropertyInput label="Text Color" disabled={isLocked}>
-                        <div className="flex items-center space-x-3">
-                            <input 
-                                type="color" 
-                                value={component.properties.textColor || '#1e293b'} 
-                                onChange={e => handlePropertyChange('textColor', e.target.value)}
-                                className="w-12 h-12 rounded-lg border-2 border-slate-300 dark:border-slate-600 cursor-pointer disabled:opacity-50"
-                                disabled={isLocked}
-                            />
-                            <input 
-                                type="text" 
-                                value={component.properties.textColor || '#1e293b'} 
-                                onChange={e => handlePropertyChange('textColor', e.target.value)}
-                                className={`${mobileInputClasses} flex-1`}
-                                placeholder="#1e293b"
-                                disabled={isLocked}
-                            />
-                        </div>
-                    </PropertyInput>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                        <PropertyInput label="Font Size" disabled={isLocked}>
-                            <input 
-                                type="number" 
-                                min="1" 
-                                value={component.properties.fontSize || 16} 
-                                onChange={e => handlePropertyChange('fontSize', parseInt(e.target.value) || 16)}
-                                className={mobileInputClasses}
-                                disabled={isLocked}
-                            />
-                        </PropertyInput>
-                        <PropertyInput label="Font Weight" disabled={isLocked}>
-                            <select 
-                                value={component.properties.fontWeight || 'normal'} 
-                                onChange={e => handlePropertyChange('fontWeight', e.target.value)}
-                                className={mobileSelectClasses}
-                                disabled={isLocked}
-                            >
-                                <option value="normal">Normal</option>
-                                <option value="500">Medium</option>
-                                <option value="600">Semibold</option>
-                                <option value="bold">Bold</option>
-                            </select>
-                        </PropertyInput>
-                    </div>
-                </PropertySection>
-            );
-
-        default:
-            return null;
-    }
 };
