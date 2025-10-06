@@ -115,13 +115,13 @@ const getCursorForHandle = (handle: string, rotation = 0) => {
 const getHandleSize = (isMobile: boolean, zoom: number) => {
   const baseSize = isMobile ? MOBILE_HANDLE_SIZE : HANDLE_SIZE;
   const scaledSize = baseSize / zoom;
-  
+
   // Ensure minimum 44px touch target in mobile mode
   if (isMobile) {
     const minTouchTarget = MOBILE_MIN_TOUCH_TARGET / zoom;
     return Math.max(scaledSize, minTouchTarget);
   }
-  
+
   return scaledSize;
 };
 
@@ -140,10 +140,10 @@ const getRotationHandleOffset = (isMobile: boolean, zoom: number) => {
  */
 const getTouchArea = (isMobile: boolean, zoom: number) => {
   if (!isMobile) return getHandleSize(false, zoom);
-  
+
   const minTouchArea = MOBILE_MIN_TOUCH_TARGET / zoom;
   const visualHandle = MOBILE_HANDLE_SIZE / zoom;
-  
+
   // Touch area should be at least 44px but can be larger than visual handle
   return Math.max(minTouchArea, visualHandle * 1.5);
 };
@@ -182,7 +182,7 @@ export const Canvas = () => {
   const [drawnPaths, setDrawnPaths] = useState<{ x: number; y: number }[][]>(
     []
   );
-  
+
   // Enhanced drawing performance state for mobile
   const [drawingPerformanceState, setDrawingPerformanceState] = useState<{
     lastDrawTime: number;
@@ -191,9 +191,9 @@ export const Canvas = () => {
   }>({
     lastDrawTime: 0,
     pathBuffer: [],
-    isDrawingOptimized: false
+    isDrawingOptimized: false,
   });
-  
+
   // Drawing performance optimization refs
   const drawingThrottleRef = useRef<number>(0);
   const pathSmoothingRef = useRef<{ x: number; y: number }[]>([]);
@@ -201,115 +201,124 @@ export const Canvas = () => {
   // Path smoothing for better touch drawing experience
   const smoothPath = useCallback((points: { x: number; y: number }[]) => {
     if (points.length < 3) return points;
-    
+
     const smoothed: { x: number; y: number }[] = [points[0]];
-    
+
     for (let i = 1; i < points.length - 1; i++) {
       const prev = points[i - 1];
       const curr = points[i];
       const next = points[i + 1];
-      
+
       // Simple smoothing using weighted average
       const smoothedPoint = {
         x: (prev.x + 2 * curr.x + next.x) / 4,
-        y: (prev.y + 2 * curr.y + next.y) / 4
+        y: (prev.y + 2 * curr.y + next.y) / 4,
       };
-      
+
       smoothed.push(smoothedPoint);
     }
-    
+
     smoothed.push(points[points.length - 1]);
     return smoothed;
   }, []);
 
   // Optimized drawing for mobile touch devices
-  const addDrawingPoint = useCallback((point: { x: number; y: number }) => {
-    const now = performance.now();
-    
-    if (isMobileMode) {
-      // Enhanced performance for mobile touch drawing
-      if (now - drawingThrottleRef.current < 8) { // ~120fps for smooth drawing
-        // Buffer the point for later processing
-        pathSmoothingRef.current.push(point);
-        return;
-      }
-      
-      drawingThrottleRef.current = now;
-      
-      // Process buffered points with smoothing
-      const allPoints = [...pathSmoothingRef.current, point];
-      const smoothedPoints = smoothPath(allPoints);
-      
-      setDrawnPaths((paths) => {
-        const newPaths = [...paths];
-        if (newPaths.length > 0) {
-          // Replace the last few points with smoothed version
-          const lastPath = [...newPaths[newPaths.length - 1]];
-          const startIndex = Math.max(0, lastPath.length - smoothedPoints.length);
-          
-          // Merge smoothed points
-          for (let i = 0; i < smoothedPoints.length; i++) {
-            if (startIndex + i < lastPath.length) {
-              lastPath[startIndex + i] = smoothedPoints[i];
-            } else {
-              lastPath.push(smoothedPoints[i]);
-            }
-          }
-          
-          newPaths[newPaths.length - 1] = lastPath;
+  const addDrawingPoint = useCallback(
+    (point: { x: number; y: number }) => {
+      const now = performance.now();
+
+      if (isMobileMode) {
+        // Enhanced performance for mobile touch drawing
+        if (now - drawingThrottleRef.current < 8) {
+          // ~120fps for smooth drawing
+          // Buffer the point for later processing
+          pathSmoothingRef.current.push(point);
+          return;
         }
-        return newPaths;
-      });
-      
-      // Clear buffer
-      pathSmoothingRef.current = [];
-      
-    } else {
-      // Standard drawing for desktop (preserve existing behavior)
-      setDrawnPaths((paths) => {
-        const newPaths = [...paths];
-        newPaths[newPaths.length - 1].push(point);
-        return newPaths;
-      });
-    }
-  }, [isMobileMode, smoothPath]);
+
+        drawingThrottleRef.current = now;
+
+        // Process buffered points with smoothing
+        const allPoints = [...pathSmoothingRef.current, point];
+        const smoothedPoints = smoothPath(allPoints);
+
+        setDrawnPaths((paths) => {
+          const newPaths = [...paths];
+          if (newPaths.length > 0) {
+            // Replace the last few points with smoothed version
+            const lastPath = [...newPaths[newPaths.length - 1]];
+            const startIndex = Math.max(
+              0,
+              lastPath.length - smoothedPoints.length
+            );
+
+            // Merge smoothed points
+            for (let i = 0; i < smoothedPoints.length; i++) {
+              if (startIndex + i < lastPath.length) {
+                lastPath[startIndex + i] = smoothedPoints[i];
+              } else {
+                lastPath.push(smoothedPoints[i]);
+              }
+            }
+
+            newPaths[newPaths.length - 1] = lastPath;
+          }
+          return newPaths;
+        });
+
+        // Clear buffer
+        pathSmoothingRef.current = [];
+      } else {
+        // Standard drawing for desktop (preserve existing behavior)
+        setDrawnPaths((paths) => {
+          const newPaths = [...paths];
+          newPaths[newPaths.length - 1].push(point);
+          return newPaths;
+        });
+      }
+    },
+    [isMobileMode, smoothPath]
+  );
 
   // Haptic feedback for mobile interactions
-  const triggerHapticFeedback = useCallback((type: 'light' | 'medium' | 'heavy' | 'selection' | 'impact' = 'light') => {
-    if (!isMobileMode || typeof navigator === 'undefined') return;
-    
-    try {
-      // Modern Vibration API with pattern support
-      if ('vibrate' in navigator) {
-        const patterns = {
-          light: [10],
-          medium: [20],
-          heavy: [30],
-          selection: [5, 5, 5],
-          impact: [15, 10, 15]
-        };
-        
-        navigator.vibrate(patterns[type]);
+  const triggerHapticFeedback = useCallback(
+    (type: "light" | "medium" | "heavy" | "selection" | "impact" = "light") => {
+      if (!isMobileMode || typeof navigator === "undefined") return;
+
+      try {
+        // Modern Vibration API with pattern support
+        if ("vibrate" in navigator) {
+          const patterns = {
+            light: [10],
+            medium: [20],
+            heavy: [30],
+            selection: [5, 5, 5],
+            impact: [15, 10, 15],
+          };
+
+          navigator.vibrate(patterns[type]);
+        }
+
+        // iOS Haptic Feedback (if available)
+        if ("hapticFeedback" in navigator) {
+          const hapticTypes = {
+            light: "impactLight",
+            medium: "impactMedium",
+            heavy: "impactHeavy",
+            selection: "selectionChanged",
+            impact: "impactMedium",
+          };
+
+          // @ts-ignore - iOS specific API
+          navigator.hapticFeedback?.(hapticTypes[type]);
+        }
+      } catch (error) {
+        // Silently fail if haptic feedback is not supported
+        console.debug("Haptic feedback not supported:", error);
       }
-      
-      // iOS Haptic Feedback (if available)
-      if ('hapticFeedback' in navigator) {
-        const hapticTypes = {
-          light: 'impactLight',
-          medium: 'impactMedium', 
-          heavy: 'impactHeavy',
-          selection: 'selectionChanged',
-          impact: 'impactMedium'
-        };
-        
-        // @ts-ignore - iOS specific API
-        navigator.hapticFeedback?.(hapticTypes[type]);
-      }
-    } catch (error) {
-      // Silently fail if haptic feedback is not supported
-      console.debug('Haptic feedback not supported:', error);
-    }
-  }, [isMobileMode]);
+    },
+    [isMobileMode]
+  );
   const [moveOffsets, setMoveOffsets] = useState<
     Map<string, { dx: number; dy: number }>
   >(new Map());
@@ -752,11 +761,41 @@ export const Canvas = () => {
         w: number;
         h: number;
       }[] = [
-        { name: "tl", x: x - touchOffset, y: y - touchOffset, w: touchAreaSize, h: touchAreaSize },
-        { name: "tr", x: x + width - hs - touchOffset, y: y - touchOffset, w: touchAreaSize, h: touchAreaSize },
-        { name: "bl", x: x - touchOffset, y: y + height - hs - touchOffset, w: touchAreaSize, h: touchAreaSize },
-        { name: "br", x: x + width - hs - touchOffset, y: y + height - hs - touchOffset, w: touchAreaSize, h: touchAreaSize },
-        { name: "tm", x: x + width / 2 - touchAreaSize / 2, y: y - touchOffset, w: touchAreaSize, h: touchAreaSize },
+        {
+          name: "tl",
+          x: x - touchOffset,
+          y: y - touchOffset,
+          w: touchAreaSize,
+          h: touchAreaSize,
+        },
+        {
+          name: "tr",
+          x: x + width - hs - touchOffset,
+          y: y - touchOffset,
+          w: touchAreaSize,
+          h: touchAreaSize,
+        },
+        {
+          name: "bl",
+          x: x - touchOffset,
+          y: y + height - hs - touchOffset,
+          w: touchAreaSize,
+          h: touchAreaSize,
+        },
+        {
+          name: "br",
+          x: x + width - hs - touchOffset,
+          y: y + height - hs - touchOffset,
+          w: touchAreaSize,
+          h: touchAreaSize,
+        },
+        {
+          name: "tm",
+          x: x + width / 2 - touchAreaSize / 2,
+          y: y - touchOffset,
+          w: touchAreaSize,
+          h: touchAreaSize,
+        },
         {
           name: "bm",
           x: x + width / 2 - touchAreaSize / 2,
@@ -764,7 +803,13 @@ export const Canvas = () => {
           w: touchAreaSize,
           h: touchAreaSize,
         },
-        { name: "ml", x: x - touchOffset, y: y + height / 2 - touchAreaSize / 2, w: touchAreaSize, h: touchAreaSize },
+        {
+          name: "ml",
+          x: x - touchOffset,
+          y: y + height / 2 - touchAreaSize / 2,
+          w: touchAreaSize,
+          h: touchAreaSize,
+        },
         {
           name: "mr",
           x: x + width - hs - touchOffset,
@@ -838,15 +883,16 @@ export const Canvas = () => {
           setActiveResizeHandle(
             actionUnderCursor.handle as ResizeHandle | "rot" | null
           );
-          
+
           // Trigger haptic feedback for manipulation start
-          const feedbackType = actionUnderCursor.action === 'rotating' ? 'medium' : 'light';
+          const feedbackType =
+            actionUnderCursor.action === "rotating" ? "medium" : "light";
           triggerHapticFeedback(feedbackType);
 
           if (!selectedComponentIds.includes(actionUnderCursor.componentId)) {
             selectComponent(actionUnderCursor.componentId, false);
             // Trigger haptic feedback for component selection
-            triggerHapticFeedback('selection');
+            triggerHapticFeedback("selection");
           }
 
           const original = new Map<string, WireframeComponent>();
@@ -871,9 +917,9 @@ export const Canvas = () => {
       } else if (currentTool === "pen") {
         setAction("drawing");
         setDrawnPaths((paths) => [...paths, [worldCoords]]);
-        
+
         // Trigger haptic feedback for drawing start
-        triggerHapticFeedback('light');
+        triggerHapticFeedback("light");
       } else if (currentTool !== "erase") {
         setAction("drawing");
         setCurrentShape({
@@ -1081,9 +1127,9 @@ export const Canvas = () => {
       if (finalShape.width > 5 && finalShape.height > 5) {
         const newComponent = addComponent(finalShape);
         selectComponent(newComponent.id, false);
-        
+
         // Trigger haptic feedback for component creation
-        triggerHapticFeedback('impact');
+        triggerHapticFeedback("impact");
       }
     }
     setAction("none");
@@ -1111,7 +1157,7 @@ export const Canvas = () => {
   const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
     // Only handle wheel events in web UI mode to prevent conflicts with mobile gestures
     if (isMobileMode) return;
-    
+
     e.preventDefault();
     const zoomFactor = 1.1;
     const newZoom = e.deltaY < 0 ? zoom * zoomFactor : zoom / zoomFactor;
@@ -1152,7 +1198,7 @@ export const Canvas = () => {
     initialPan: { x: 0, y: 0 },
     gestureCenter: { x: 0, y: 0 },
     lastTouchPositions: [],
-    gestureStartTime: 0
+    gestureStartTime: 0,
   });
 
   // Gesture smoothing and performance optimization
@@ -1175,7 +1221,7 @@ export const Canvas = () => {
     const touch2 = touches[1];
     return {
       x: (touch1.clientX + touch2.clientX) / 2,
-      y: (touch1.clientY + touch2.clientY) / 2
+      y: (touch1.clientY + touch2.clientY) / 2,
     };
   }, []);
 
@@ -1183,26 +1229,26 @@ export const Canvas = () => {
   const handleTouchStart = useCallback(
     (e: React.TouchEvent<HTMLCanvasElement>) => {
       if (!isMobileMode) return; // Only handle touch events in mobile mode
-      
+
       const touchCount = e.touches.length;
-      
+
       if (touchCount === 2) {
         // Two-finger gesture detected - start pinch/pan gesture
         e.preventDefault();
-        
+
         const canvas = canvasRef.current;
         if (!canvas) return;
         const rect = canvas.getBoundingClientRect();
-        
+
         const distance = getTouchDistance(e.touches);
         const center = getTouchCenter(e.touches);
-        
+
         // Convert screen coordinates to canvas coordinates
         const canvasCenter = {
           x: center.x - rect.left,
-          y: center.y - rect.top
+          y: center.y - rect.top,
         };
-        
+
         setGestureState({
           isGesturing: true,
           initialDistance: distance,
@@ -1211,19 +1257,18 @@ export const Canvas = () => {
           gestureCenter: canvasCenter,
           lastTouchPositions: Array.from(e.touches).map((touch: Touch) => ({
             x: touch.clientX,
-            y: touch.clientY
+            y: touch.clientY,
           })),
-          gestureStartTime: performance.now()
+          gestureStartTime: performance.now(),
         });
-        
+
         // Cancel any ongoing single-touch action
-        setAction('none');
-        
+        setAction("none");
       } else if (touchCount === 1 && !gestureState.isGesturing) {
         // Single touch - convert to mouse event for existing functionality
         e.preventDefault();
         const touch = e.touches[0];
-        
+
         const mouseEvent = {
           preventDefault: () => e.preventDefault(),
           button: 0,
@@ -1235,76 +1280,93 @@ export const Canvas = () => {
           movementX: 0,
           movementY: 0,
         } as React.MouseEvent<HTMLCanvasElement>;
-        
+
         handleMouseDown(mouseEvent);
       }
     },
-    [isMobileMode, getTouchDistance, getTouchCenter, zoom, pan, gestureState.isGesturing, handleMouseDown]
+    [
+      isMobileMode,
+      getTouchDistance,
+      getTouchCenter,
+      zoom,
+      pan,
+      gestureState.isGesturing,
+      handleMouseDown,
+    ]
   );
 
   const handleTouchMove = useCallback(
     (e: React.TouchEvent<HTMLCanvasElement>) => {
       if (!isMobileMode) return;
-      
+
       const touchCount = e.touches.length;
-      
+
       if (touchCount === 2 && gestureState.isGesturing) {
         // Two-finger gesture in progress - handle pinch-to-zoom and pan
         e.preventDefault();
-        
+
         // Throttle gesture updates for better performance (60fps max)
         const now = performance.now();
         if (now - gestureThrottleRef.current < 16) return; // ~60fps
         gestureThrottleRef.current = now;
-        
+
         const canvas = canvasRef.current;
         if (!canvas) return;
         const rect = canvas.getBoundingClientRect();
-        
+
         const currentDistance = getTouchDistance(e.touches);
         const currentCenter = getTouchCenter(e.touches);
         const currentCanvasCenter = {
           x: currentCenter.x - rect.left,
-          y: currentCenter.y - rect.top
+          y: currentCenter.y - rect.top,
         };
-        
+
         // Prevent invalid gestures (distance too small or too large changes)
         if (currentDistance < 20) return; // Minimum distance to prevent jitter
-        
+
         const distanceRatio = currentDistance / gestureState.initialDistance;
         if (distanceRatio < 0.1 || distanceRatio > 10) return; // Prevent extreme zoom changes
-        
+
         // Prevent gestures that are too fast (likely accidental)
         const gestureTime = now - gestureState.gestureStartTime;
         if (gestureTime < 50) return; // Minimum gesture time to prevent accidental triggers
-        
+
         // Calculate zoom based on pinch gesture with smoothing
         const zoomFactor = currentDistance / gestureState.initialDistance;
         const rawNewZoom = gestureState.initialZoom * zoomFactor;
         const newZoom = Math.max(0.1, Math.min(rawNewZoom, 4));
-        
+
         // Calculate pan based on gesture center movement
-        const centerDeltaX = currentCanvasCenter.x - gestureState.gestureCenter.x;
-        const centerDeltaY = currentCanvasCenter.y - gestureState.gestureCenter.y;
-        
+        const centerDeltaX =
+          currentCanvasCenter.x - gestureState.gestureCenter.x;
+        const centerDeltaY =
+          currentCanvasCenter.y - gestureState.gestureCenter.y;
+
         // Apply zoom-aware pan calculation (similar to mouse wheel zoom)
         const zoomRatio = newZoom / gestureState.initialZoom;
-        const newPanX = gestureState.gestureCenter.x - (gestureState.gestureCenter.x - gestureState.initialPan.x) * zoomRatio + centerDeltaX;
-        const newPanY = gestureState.gestureCenter.y - (gestureState.gestureCenter.y - gestureState.initialPan.y) * zoomRatio + centerDeltaY;
-        
+        const newPanX =
+          gestureState.gestureCenter.x -
+          (gestureState.gestureCenter.x - gestureState.initialPan.x) *
+            zoomRatio +
+          centerDeltaX;
+        const newPanY =
+          gestureState.gestureCenter.y -
+          (gestureState.gestureCenter.y - gestureState.initialPan.y) *
+            zoomRatio +
+          centerDeltaY;
+
         // Apply the transform with requestAnimationFrame for smooth updates
         requestAnimationFrame(() => {
-          setViewTransform({ 
-            zoom: newZoom, 
-            pan: { x: newPanX, y: newPanY } 
+          setViewTransform({
+            zoom: newZoom,
+            pan: { x: newPanX, y: newPanY },
           });
         });
-        
       } else if (touchCount === 1 && !gestureState.isGesturing) {
         // Single touch move - convert to mouse event
         e.preventDefault();
         const touch = e.touches[0];
-        
+
         const mouseEvent = {
           preventDefault: () => e.preventDefault(),
           clientX: touch.clientX,
@@ -1312,28 +1374,35 @@ export const Canvas = () => {
           movementX: 0, // Touch events don't have movement deltas
           movementY: 0,
         } as React.MouseEvent<HTMLCanvasElement>;
-        
+
         handleMouseMove(mouseEvent);
       }
     },
-    [isMobileMode, gestureState, getTouchDistance, getTouchCenter, setViewTransform, handleMouseMove]
+    [
+      isMobileMode,
+      gestureState,
+      getTouchDistance,
+      getTouchCenter,
+      setViewTransform,
+      handleMouseMove,
+    ]
   );
 
   const handleTouchEnd = useCallback(
     (e: React.TouchEvent<HTMLCanvasElement>) => {
       if (!isMobileMode) return;
-      
+
       const touchCount = e.touches.length;
-      
+
       if (gestureState.isGesturing && touchCount < 2) {
         // End of multi-touch gesture
         e.preventDefault();
-        setGestureState(prev => ({
+        setGestureState((prev) => ({
           ...prev,
           isGesturing: false,
           initialDistance: 0,
           lastTouchPositions: [],
-          gestureStartTime: 0
+          gestureStartTime: 0,
         }));
       } else if (touchCount === 0 && !gestureState.isGesturing) {
         // End of single touch
@@ -1353,12 +1422,12 @@ export const Canvas = () => {
       if (isMobileMode && (action !== "none" || gestureState.isGesturing)) {
         handleMouseUp();
         // Reset gesture state if needed
-        setGestureState(prev => ({
+        setGestureState((prev) => ({
           ...prev,
           isGesturing: false,
           initialDistance: 0,
           lastTouchPositions: [],
-          gestureStartTime: 0
+          gestureStartTime: 0,
         }));
       }
     };

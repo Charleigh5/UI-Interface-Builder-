@@ -8,7 +8,7 @@ import { WebLayout } from './components/web/WebLayout';
 import { MobileLayout } from './components/mobile/MobileLayout';
 import { getPerformanceMonitor } from './utils/performanceMonitor';
 
-export default function App() {
+function AppContent() {
     const { 
         state, 
         duplicateComponents, 
@@ -183,4 +183,8 @@ export default function App() {
             mobileUI={<MobileLayout />}
         />
     );
+}
+
+export default function App() {
+    return <AppContent />;
 }
