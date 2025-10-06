@@ -35,6 +35,13 @@
     <!-- Mobile UI Optimizations and Animations -->
     <link rel="stylesheet" href="/styles/mobile-optimizations.css" />
     <style>
+      /* Root variables for smooth theme transitions */
+      :root {
+        --transition-theme: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                           color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                           border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      
       body {
         font-family: 'Inter', sans-serif;
         /* Prevent text size adjustment on orientation change (Android/iOS) */
@@ -46,10 +53,41 @@
         -webkit-overflow-scrolling: touch;
         /* Prevent pull-to-refresh on Android Chrome */
         overscroll-behavior-y: contain;
+        /* Smooth theme transitions */
+        transition: var(--transition-theme);
       }
       
       .dark {
         color-scheme: dark;
+      }
+      
+      /* Smooth transitions for theme changes */
+      @media (prefers-reduced-motion: no-preference) {
+        *,
+        *::before,
+        *::after {
+          transition-property: background-color, border-color, color, fill, stroke;
+          transition-duration: 0.2s;
+          transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        /* Exclude elements that should not transition */
+        canvas,
+        video,
+        iframe,
+        img {
+          transition: none !important;
+        }
+      }
+      
+      /* Disable transitions for reduced motion preference */
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          transition: none !important;
+          animation: none !important;
+        }
       }
       
       /* Android-specific optimizations */

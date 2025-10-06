@@ -292,4 +292,10 @@ export const Toolbar: React.FC = () => {
                                     Analyze Sketch
                                  </>
                             )}
-                        </button
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    );
+};

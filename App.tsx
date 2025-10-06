@@ -21,10 +21,29 @@ export default function App() {
     } = useContext(AppContext);
     const isMobile = useMobileDetection();
 
+    // Load user's theme preference on mount
+    useEffect(() => {
+        try {
+            const savedTheme = localStorage.getItem('theme-preference');
+            if (savedTheme === 'dark' || savedTheme === 'light') {
+                dispatch({ type: 'SET_THEME', payload: savedTheme });
+            } else {
+                // Check system preference
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                dispatch({ type: 'SET_THEME', payload: prefersDark ? 'dark' : 'light' });
+            }
+        } catch (error) {
+            console.debug('Could not load theme preference:', error);
+        }
+    }, [dispatch]);
+
     // Theme management - applies to both mobile and web UI
     useEffect(() => {
         document.documentElement.classList.remove('light', 'dark');
         document.documentElement.classList.add(state.theme);
+        
+        // Add smooth transition class for theme changes
+        document.documentElement.style.setProperty('color-scheme', state.theme);
     }, [state.theme]);
 
     // Mobile mode detection and state synchronization

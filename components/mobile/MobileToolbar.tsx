@@ -1,6 +1,7 @@
 import React, { useContext, useRef, useCallback, useEffect } from 'react';
 import { Tool } from '../../library/types';
 import { Icon } from '../Icon';
+import { ThemeToggle } from '../ThemeToggle';
 import { AppContext } from '../../store/AppContext';
 
 interface MobileToolDefinition {
@@ -421,6 +422,14 @@ export const MobileToolbar: React.FC<MobileToolbarProps> = ({ isVisible, onClose
                             </div>
                         </div>
                     )}
+
+                    {/* Theme Toggle */}
+                    <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
+                        <h4 className="text-sm font-medium text-slate-600 dark:text-slate-400 mb-3">
+                            Appearance
+                        </h4>
+                        <ThemeToggle variant="mobile" showLabel={true} />
+                    </div>
 
                     {/* Safe area padding for devices with home indicators */}
                     <div className="h-4" />

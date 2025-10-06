@@ -4,6 +4,7 @@ import { Toolbar } from '../Toolbar';
 import { RightSidebar } from '../RightSidebar';
 import { ZoomControls } from '../ZoomControls';
 import { Icon } from '../Icon';
+import { ThemeToggle } from '../ThemeToggle';
 import { AppContext } from '../../store/AppContext';
 
 /**
@@ -37,9 +38,20 @@ export const WebLayout: React.FC = () => {
             </div>
 
             {/* Center - Canvas */}
-            <main className="flex-1 flex items-center justify-center p-4 relative">
-                <Canvas />
-                <ZoomControls />
+            <main className="flex-1 flex flex-col relative">
+                {/* Top bar with theme toggle */}
+                <div className="flex-shrink-0 h-14 flex items-center justify-between px-4 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+                    <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                        AI Wireframe Designer
+                    </h1>
+                    <ThemeToggle />
+                </div>
+                
+                {/* Canvas area */}
+                <div className="flex-1 flex items-center justify-center p-4 relative">
+                    <Canvas />
+                    <ZoomControls />
+                </div>
             </main>
 
             {/* Right Sidebar - Properties/Layers/Code */}
