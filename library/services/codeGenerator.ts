@@ -51,7 +51,7 @@ export const generateReactCode = (components: WireframeComponent[]): string => {
             transform: comp.rotation ? `rotate(${comp.rotation}deg)` : undefined,
             color: comp.properties.textColor,
             fontSize: comp.properties.fontSize,
-            fontWeight: comp.properties.fontWeight as any,
+            fontWeight: comp.properties.fontWeight,
             textAlign: comp.properties.textAlign,
             display: 'flex',
             alignItems: 'center',
@@ -60,24 +60,28 @@ export const generateReactCode = (components: WireframeComponent[]): string => {
             boxSizing: 'border-box',
         };
 
-        const styleString = JSON.stringify(style, null, 4)
-            .replace(/"/g, "'")
-            .replace(/'undefined'/g, 'undefined')
-            .replace(/,\n/g, ',\n    ')
-            .replace(/\n}/g, ',\n  }');
+        const styleString = Object.entries(style)
+            .filter(([, value]) => value !== undefined && value !== null)
+            .map(([key, value]) => {
+                const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+                const cssValue = typeof value === 'number' && key !== 'fontWeight' ? `${value}px` : value;
+                return `${cssKey}: '${cssValue}'`;
+            })
+            .join(', ');
 
+        const styleProp = `{{ ${styleString} }}`;
 
         switch (comp.type) {
             case 'button':
-                return `<button style={${styleString}}>\n    ${comp.properties.buttonText || comp.label}\n  </button>`;
+                return `<button style={${styleProp}}>\n    ${comp.properties.buttonText || comp.label}\n  </button>`;
             case 'input':
-                return `<input\n    type="${comp.properties.inputType || 'text'}"\n    placeholder="${comp.properties.placeholder || 'Placeholder'}"\n    style={${styleString}}\n  />`;
+                return `<input\n    type="${comp.properties.inputType || 'text'}"\n    placeholder="${comp.properties.placeholder || 'Placeholder'}"\n    style={${styleProp}}\n  />`;
             case 'text':
-                return `<p style={${styleString}}>\n    ${comp.label}\n  </p>`;
+                return `<p style={${styleProp}}>\n    ${comp.label}\n  </p>`;
             case 'image':
-                 return `<div style={${styleString}}>\n    <svg width="80%" height="80%" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ color: '${comp.properties.borderColor}'}}>\n      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />\n      <circle cx="8.5" cy="8.5" r="1.5" />\n      <path d="M21 15l-5-5L5 21" />\n    </svg>\n  </div>`;
+                 return `<div style={${styleProp}}>\n    <svg width="80%" height="80%" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ color: '${comp.properties.borderColor}'}}>\n      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />\n      <circle cx="8.5" cy="8.5" r="1.5" />\n      <path d="M21 15l-5-5L5 21" />\n    </svg>\n  </div>`;
             default:
-                return `<div style={${styleString}} />`;
+                return `<div style={${styleProp}} />`;
         }
     }).join('\n\n  ');
 

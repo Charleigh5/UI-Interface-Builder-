@@ -1,24 +1,22 @@
 
 
 import React, { useContext, useEffect } from 'react';
-import { AppContext } from './store/AppContext';
-import { useMobileDetection } from './hooks/useMobileDetection';
-import { ResponsiveLayoutContainer } from './components/ResponsiveLayoutContainer';
-import { WebLayout } from './components/web/WebLayout';
-import { MobileLayout } from './components/mobile/MobileLayout';
-import { getPerformanceMonitor } from './utils/performanceMonitor';
+import { useStore } from './store/store';
 
 function AppContent() {
-    const { 
-        state, 
-        duplicateComponents, 
+    const {
+        theme,
+        setTheme,
+        duplicateComponents,
         setMobileMode,
-        dispatch,
         groupComponents,
         ungroupComponents,
         bringToFront,
-        sendToBack
-    } = useContext(AppContext);
+        sendToBack,
+        deleteComponent,
+        selectedComponentIds,
+        components
+    } = useStore();
     const isMobile = useMobileDetection();
 
     // Load user's theme preference on mount
@@ -26,25 +24,25 @@ function AppContent() {
         try {
             const savedTheme = localStorage.getItem('theme-preference');
             if (savedTheme === 'dark' || savedTheme === 'light') {
-                dispatch({ type: 'SET_THEME', payload: savedTheme });
+                setTheme(savedTheme);
             } else {
                 // Check system preference
                 const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                dispatch({ type: 'SET_THEME', payload: prefersDark ? 'dark' : 'light' });
+                setTheme(prefersDark ? 'dark' : 'light');
             }
         } catch (error) {
             console.debug('Could not load theme preference:', error);
         }
-    }, [dispatch]);
+    }, [setTheme]);
 
     // Theme management - applies to both mobile and web UI
     useEffect(() => {
         document.documentElement.classList.remove('light', 'dark');
-        document.documentElement.classList.add(state.theme);
+        document.documentElement.classList.add(theme);
         
         // Add smooth transition class for theme changes
-        document.documentElement.style.setProperty('color-scheme', state.theme);
-    }, [state.theme]);
+        document.documentElement.style.setProperty('color-scheme', theme);
+    }, [theme]);
 
     // Mobile mode detection and state synchronization
     // Ensures canvas state is preserved when switching between mobile/web UI modes
@@ -117,15 +115,15 @@ function AppContent() {
             
             // Group: Cmd/Ctrl + G
             if (isMod && !e.shiftKey && key === 'g') {
-                if (state.selectedComponentIds.length >= 2) {
+                if (selectedComponentIds.length >= 2) {
                     groupComponents();
                 }
             }
             
             // Ungroup: Cmd/Ctrl + Shift + G
             if (isMod && e.shiftKey && key === 'g') {
-                if (state.selectedComponentIds.length === 1) {
-                    const component = state.components.find(c => c.id === state.selectedComponentIds[0]);
+                if (selectedComponentIds.length === 1) {
+                    const component = components.find(c => c.id === selectedComponentIds[0]);
                     if (component?.type === 'group') {
                         ungroupComponents();
                     }
@@ -134,20 +132,20 @@ function AppContent() {
             
             // Bring to Front: Cmd/Ctrl + ]
             if (isMod && key === ']') {
-                if (state.selectedComponentIds.length > 0) {
+                if (selectedComponentIds.length > 0) {
                     bringToFront();
                 }
             }
             
             // Send to Back: Cmd/Ctrl + [
             if (isMod && key === '[') {
-                if (state.selectedComponentIds.length > 0) {
+                if (selectedComponentIds.length > 0) {
                     sendToBack();
                 }
             }
             
             // Delete: Delete or Backspace
-            if ((key === 'delete' || key === 'backspace') && state.selectedComponentIds.length > 0) {
+            if ((key === 'delete' || key === 'backspace') && selectedComponentIds.length > 0) {
                 // Only delete if not focused on an input element
                 const activeElement = document.activeElement;
                 const isInputFocused = activeElement?.tagName === 'INPUT' || 
@@ -155,8 +153,8 @@ function AppContent() {
                                       activeElement?.getAttribute('contenteditable') === 'true';
                 
                 if (!isInputFocused) {
-                    state.selectedComponentIds.forEach(id => {
-                        dispatch({ type: 'DELETE_COMPONENT', payload: id });
+                    selectedComponentIds.forEach(id => {
+                        deleteComponent(id);
                     });
                 }
             }

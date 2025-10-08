@@ -10,7 +10,7 @@ import {
   getComponentLabel,
   getDefaultProperties,
 } from "../utils/componentUtils";
-import { AppContext } from "../store/AppContext";
+import { useStore } from "../store/store";
 
 type Action =
   | "none"
@@ -150,14 +150,6 @@ const getTouchArea = (isMobile: boolean, zoom: number) => {
 
 export const Canvas = () => {
   const {
-    state,
-    dispatch,
-    addComponent,
-    addLibraryComponent,
-    selectComponent,
-    setViewTransform,
-  } = useContext(AppContext);
-  const {
     components,
     selectedComponentIds,
     currentTool,
@@ -166,7 +158,14 @@ export const Canvas = () => {
     pan,
     drawingSettings,
     isMobileMode,
-  } = state;
+    isAnalyzing,
+    allEffectivelySelectedIds,
+    addComponent,
+    addLibraryComponent,
+    selectComponent,
+    setViewTransform,
+    updateComponent,
+  } = useStore();
   const { shapeFill, penWidth, penOpacity } = drawingSettings;
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -347,10 +346,10 @@ export const Canvas = () => {
   }, [drawnPaths]);
 
   useEffect(() => {
-    if (state.isAnalyzing) {
+    if (isAnalyzing) {
       setDrawnPaths([]);
     }
-  }, [state.isAnalyzing]);
+  }, [isAnalyzing]);
 
   const getCanvasCoordinates = (
     e:
@@ -899,7 +898,7 @@ export const Canvas = () => {
           const offsets = new Map<string, { dx: number; dy: number }>();
 
           const effectivelySelected = components.filter((c) =>
-            state.allEffectivelySelectedIds.has(c.id)
+            allEffectivelySelectedIds.has(c.id)
           );
           effectivelySelected.forEach((c) => {
             original.set(c.id, c);
@@ -995,19 +994,13 @@ export const Canvas = () => {
           pan: { x: pan.x + e.movementX, y: pan.y + e.movementY },
         });
       } else if (action === "moving") {
-        state.allEffectivelySelectedIds.forEach((id) => {
+        allEffectivelySelectedIds.forEach((id) => {
           const original = originalComponents.get(id);
           const offset = moveOffsets.get(id);
           if (original && offset) {
-            dispatch({
-              type: "UPDATE_COMPONENT",
-              payload: {
-                id,
-                updates: {
-                  x: worldCoords.x - offset.dx,
-                  y: worldCoords.y - offset.dy,
-                },
-              },
+            updateComponent(id, {
+              x: worldCoords.x - offset.dx,
+              y: worldCoords.y - offset.dy,
             });
           }
         });
@@ -1055,17 +1048,11 @@ export const Canvas = () => {
         const finalX = finalCenter.x - newWidth / 2;
         const finalY = finalCenter.y - newHeight / 2;
 
-        dispatch({
-          type: "UPDATE_COMPONENT",
-          payload: {
-            id,
-            updates: {
-              x: finalX,
-              y: finalY,
-              width: newWidth,
-              height: newHeight,
-            },
-          },
+        updateComponent(id, {
+          x: finalX,
+          y: finalY,
+          width: newWidth,
+          height: newHeight,
         });
       } else if (action === "rotating" && originalComponents.size > 0) {
         const firstEntry = originalComponents.entries().next().value as [
@@ -1087,10 +1074,7 @@ export const Canvas = () => {
         const originalRotation = original.rotation || 0;
         let newRotation = originalRotation + (currentAngle - startAngle);
         if (e.shiftKey) newRotation = Math.round(newRotation / 15) * 15;
-        dispatch({
-          type: "UPDATE_COMPONENT",
-          payload: { id, updates: { rotation: newRotation } },
-        });
+        updateComponent(id, { rotation: newRotation });
       }
     },
     [

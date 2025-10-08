@@ -2,7 +2,7 @@
 import React, { useState, useContext, useMemo } from 'react';
 import { WireframeComponent } from '../library/types';
 import { Icon } from './Icon';
-import { AppContext } from '../store/AppContext';
+import { useStore } from '../store/store';
 
 const ComponentItem: React.FC<{
     component: WireframeComponent;
@@ -93,14 +93,21 @@ const ComponentItem: React.FC<{
 });
 
 export const ComponentList: React.FC = () => {
-    const { state, dispatch, selectComponent, toggleLock, allEffectivelySelectedIds } = useContext(AppContext);
-    const { components, selectedComponentIds } = state;
+    const {
+        components,
+        selectedComponentIds,
+        allEffectivelySelectedIds,
+        selectComponent,
+        toggleLock,
+        updateComponent,
+        deleteComponent,
+    } = useStore();
 
     const handleUpdate = (id: string) => (updates: Partial<WireframeComponent>) => {
-        dispatch({ type: 'UPDATE_COMPONENT', payload: { id, updates } });
+        updateComponent(id, updates);
     };
     const handleDelete = (id: string) => () => {
-        dispatch({ type: 'DELETE_COMPONENT', payload: id });
+        deleteComponent(id);
     };
     const handleSelect = (id: string) => (e: React.MouseEvent<HTMLDivElement>) => {
         selectComponent(id, e.shiftKey);

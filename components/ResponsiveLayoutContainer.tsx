@@ -1,5 +1,5 @@
 import React, { useContext } from 'react';
-import { AppContext } from '../store/AppContext';
+import { useStore } from '../store/store';
 
 interface ResponsiveLayoutContainerProps {
     webUI: React.ReactNode;
@@ -19,8 +19,7 @@ export const ResponsiveLayoutContainer: React.FC<ResponsiveLayoutContainerProps>
     webUI,
     mobileUI
 }) => {
-    const { state } = useContext(AppContext);
-    const { isMobileMode } = state;
+    const { isMobileMode } = useStore();
 
     // Use conditional rendering instead of CSS display to ensure proper component lifecycle
     // This prevents issues with canvas sizing and event handling during mode switches

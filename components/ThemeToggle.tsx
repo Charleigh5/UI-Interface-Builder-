@@ -1,6 +1,6 @@
 import React, { useContext } from "react";
 import { Icon } from "./Icon";
-import { AppContext } from "../store/AppContext";
+import { useStore } from "../store/store";
 
 interface ThemeToggleProps {
   variant?: "default" | "mobile";
@@ -22,13 +22,12 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({
   variant = "default",
   showLabel = false,
 }) => {
-  const { state, dispatch } = useContext(AppContext);
-  const { theme, isMobileMode } = state;
+  const { theme, isMobileMode, setTheme } = useStore();
   const isDark = theme === "dark";
 
   const handleToggle = () => {
     const newTheme = isDark ? "light" : "dark";
-    dispatch({ type: "SET_THEME", payload: newTheme });
+    setTheme(newTheme);
 
     // Haptic feedback on mobile
     if (isMobileMode && "vibrate" in navigator) {

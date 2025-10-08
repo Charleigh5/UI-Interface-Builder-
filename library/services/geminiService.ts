@@ -1,9 +1,25 @@
-
-import { GoogleGenAI, Type } from "@google/genai";
+'''
 import { WireframeComponent, ComponentProperties, LayoutSuggestionType, ThemeMode } from '../types';
 import { getDefaultProperties } from "../../utils/componentUtils";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+const API_BASE_URL = 'http://localhost:3001/api';
+
+async function geminiProxy(body: any): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/gemini`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to proxy request to Gemini API');
+    }
+
+    return response.json();
+}
 
 export interface Theme {
     colors: {
@@ -19,24 +35,24 @@ export interface Theme {
 }
 
 const analyzeSketchSchema = {
-    type: Type.OBJECT,
+    type: "OBJECT",
     properties: {
         components: {
-            type: Type.ARRAY,
+            type: "ARRAY",
             description: "An array of UI components identified in the sketch.",
             items: {
-                type: Type.OBJECT,
+                type: "OBJECT",
                 properties: {
                     type: {
-                        type: Type.STRING,
+                        type: "STRING",
                         enum: ['rectangle', 'circle', 'button', 'input', 'text', 'image'],
                         description: "The type of the UI component.",
                     },
-                    x: { type: Type.NUMBER, description: "The x-coordinate of the top-left corner." },
-                    y: { type: Type.NUMBER, description: "The y-coordinate of the top-left corner." },
-                    width: { type: Type.NUMBER, description: "The width of the component." },
-                    height: { type: Type.NUMBER, description: "The height of the component." },
-                    label: { type: Type.STRING, description: "A descriptive label for the component (e.g., 'Submit Button', 'Username Input')." }
+                    x: { type: "NUMBER", description: "The x-coordinate of the top-left corner." },
+                    y: { type: "NUMBER", description: "The y-coordinate of the top-left corner." },
+                    width: { type: "NUMBER", description: "The width of the component." },
+                    height: { type: "NUMBER", description: "The height of the component." },
+                    label: { type: "STRING", description: "A descriptive label for the component (e.g., 'Submit Button', 'Username Input')." }
                 },
                 required: ['type', 'x', 'y', 'width', 'height', 'label']
             }
@@ -44,13 +60,22 @@ const analyzeSketchSchema = {
     }
 };
 
+interface AnalyzedComponent {
+    type: 'rectangle' | 'circle' | 'button' | 'input' | 'text' | 'image';
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    label: string;
+}
+
 export async function analyzeSketch(imageDataUrl: string, theme: ThemeMode = 'light'): Promise<Omit<WireframeComponent, 'id'>[]> {
     const base64Data = imageDataUrl.split(',')[1];
     const imagePart = { inlineData: { mimeType: 'image/png', data: base64Data } };
     const textPart = { text: `Analyze this wireframe sketch. Identify all distinct UI elements (buttons, inputs, text, images, shapes). Provide their type, bounding box (x, y, width, height), and a descriptive label. Respond with a JSON object that adheres to the provided schema.` };
 
     try {
-        const response = await ai.models.generateContent({
+        const response = await geminiProxy({
             model: 'gemini-2.5-flash',
             contents: { parts: [imagePart, textPart] },
             config: { responseMimeType: 'application/json', responseSchema: analyzeSketchSchema },
@@ -64,7 +89,7 @@ export async function analyzeSketch(imageDataUrl: string, theme: ThemeMode = 'li
         const result = JSON.parse(jsonText);
 
         if (result?.components && Array.isArray(result.components)) {
-             return result.components.filter(Boolean).map((c: any) => ({ 
+             return result.components.filter(Boolean).map((c: AnalyzedComponent) => ({ 
                 ...c, 
                 properties: getDefaultProperties(c.type, theme), 
                 rotation: 0, 
@@ -79,28 +104,28 @@ export async function analyzeSketch(imageDataUrl: string, theme: ThemeMode = 'li
 }
 
 const imageToComponentSchema = {
-    type: Type.OBJECT,
+    type: "OBJECT",
     properties: {
         type: {
-            type: Type.STRING,
+            type: "STRING",
             enum: ['button', 'input', 'text', 'image', 'rectangle'],
             description: "The type of the UI component.",
         },
-        width: { type: Type.NUMBER, description: "The estimated width of the component in pixels." },
-        height: { type: Type.NUMBER, description: "The estimated height of the component in pixels." },
-        label: { type: Type.STRING, description: "A descriptive label for the component." },
+        width: { type: "NUMBER", description: "The estimated width of the component in pixels." },
+        height: { type: "NUMBER", description: "The estimated height of the component in pixels." },
+        label: { type: "STRING", description: "A descriptive label for the component." },
         properties: {
-            type: Type.OBJECT,
+            type: "OBJECT",
             properties: {
-                backgroundColor: { type: Type.STRING, description: "Hex color code for background." },
-                borderColor: { type: Type.STRING, description: "Hex color code for border." },
-                textColor: { type: Type.STRING, description: "Hex color code for text." },
-                borderRadius: { type: Type.NUMBER, description: "Border radius in pixels." },
-                borderWidth: { type: Type.NUMBER, description: "Border width in pixels." },
-                buttonText: { type: Type.STRING, description: "The text content of a button." },
-                placeholder: { type: Type.STRING, description: "The placeholder text of an input field." },
-                fontSize: { type: Type.NUMBER },
-                fontWeight: { type: Type.STRING },
+                backgroundColor: { type: "STRING", description: "Hex color code for background." },
+                borderColor: { type: "STRING", description: "Hex color code for border." },
+                textColor: { type: "STRING", description: "Hex color code for text." },
+                borderRadius: { type: "NUMBER", description: "Border radius in pixels." },
+                borderWidth: { type: "NUMBER", description: "Border width in pixels." },
+                buttonText: { type: "STRING", description: "The text content of a button." },
+                placeholder: { type: "STRING", description: "The placeholder text of an input field." },
+                fontSize: { type: "NUMBER" },
+                fontWeight: { type: "STRING" },
             },
             description: "Visual properties of the component."
         }
@@ -114,7 +139,7 @@ export async function convertImageToComponent(imageDataUrl: string, theme: Theme
     const textPart = { text: "Analyze this image, which contains a single UI component like a button or a card. Describe it as a single component object. Extract its type, estimated width and height, a label, and visual properties like colors, text, and border-radius. Adhere to the provided JSON schema." };
 
     try {
-        const response = await ai.models.generateContent({
+        const response = await geminiProxy({
             model: 'gemini-2.5-flash',
             contents: { parts: [imagePart, textPart] },
             config: { responseMimeType: 'application/json', responseSchema: imageToComponentSchema },
@@ -147,17 +172,17 @@ export async function convertImageToComponent(imageDataUrl: string, theme: Theme
 
 
 const contentUpdateSchema = {
-    type: Type.OBJECT,
+    type: "OBJECT",
     properties: {
         updates: {
-            type: Type.ARRAY,
+            type: "ARRAY",
             items: {
-                type: Type.OBJECT,
+                type: "OBJECT",
                 properties: {
-                    id: { type: Type.STRING },
-                    label: { type: Type.STRING, description: "New label for a text component." },
-                    buttonText: { type: Type.STRING, description: "New text for a button." },
-                    placeholder: { type: Type.STRING, description: "New placeholder for an input." }
+                    id: { type: "STRING" },
+                    label: { type: "STRING", description: "New label for a text component." },
+                    buttonText: { type: "STRING", description: "New text for a button." },
+                    placeholder: { type: "STRING", description: "New placeholder for an input." }
                 },
                 required: ['id']
             }
@@ -168,7 +193,7 @@ const contentUpdateSchema = {
 export async function generateContentForComponents(prompt: string, components: WireframeComponent[]): Promise<{ id: string; updates: Partial<WireframeComponent> }[]> {
     const componentData = components.map(c => ({ id: c.id, type: c.type, label: c.label }));
     
-    const response = await ai.models.generateContent({
+    const response = await geminiProxy({
         model: 'gemini-2.5-flash',
         contents: `Given the prompt "${prompt}" and the following UI components: ${JSON.stringify(componentData)}, generate appropriate text content for each component. Provide updates as an array of objects with the component 'id' and the new content for 'label', 'buttonText', or 'placeholder'.`,
         config: { responseMimeType: "application/json", responseSchema: contentUpdateSchema }
@@ -198,20 +223,20 @@ export async function generateContentForComponents(prompt: string, components: W
 }
 
 const styleSuggestionsSchema = {
-    type: Type.OBJECT,
+    type: "OBJECT",
     properties: {
         styles: {
-            type: Type.ARRAY,
+            type: "ARRAY",
             description: "An array of 4 distinct style suggestions.",
             items: {
-                type: Type.OBJECT,
+                type: "OBJECT",
                 properties: {
-                    backgroundColor: { type: Type.STRING, description: "Hex color code for background." },
-                    borderColor: { type: Type.STRING, description: "Hex color code for border." },
-                    textColor: { type: Type.STRING, description: "Hex color code for text." },
-                    borderRadius: { type: Type.NUMBER, description: "Border radius in pixels." },
-                    borderWidth: { type: Type.NUMBER, description: "Border width in pixels." },
-                    fontWeight: { type: Type.STRING, description: "Font weight (e.g., '400', '700', 'bold')." }
+                    backgroundColor: { type: "STRING", description: "Hex color code for background." },
+                    borderColor: { type: "STRING", description: "Hex color code for border." },
+                    textColor: { type: "STRING", description: "Hex color code for text." },
+                    borderRadius: { type: "NUMBER", description: "Border radius in pixels." },
+                    borderWidth: { type: "NUMBER", description: "Border width in pixels." },
+                    fontWeight: { type: "STRING", description: "Font weight (e.g., '400', '700', 'bold')." }
                 }
             }
         }
@@ -220,13 +245,13 @@ const styleSuggestionsSchema = {
 
 export async function generateStyleVariations(prompt: string, components: WireframeComponent[]): Promise<Partial<ComponentProperties>[]> {
     const componentTypes = [...new Set(components.map(c => c.type))];
-    const response = await ai.models.generateContent({
+    const response = await geminiProxy({
         model: 'gemini-2.5-flash',
         contents: `Generate 4 distinct UI style variations based on the prompt: "${prompt}". The styles should be suitable for components like: ${componentTypes.join(', ')}. Provide CSS property values for each style.`,
         config: { responseMimeType: "application/json", responseSchema: styleSuggestionsSchema }
     });
     const jsonText = response.text?.trim();
-    if (!jsonText) {
+    if (!jsonText) {.
         console.warn("Gemini returned empty JSON for style variations.");
         return [];
     }
@@ -235,17 +260,17 @@ export async function generateStyleVariations(prompt: string, components: Wirefr
 }
 
 const layoutSuggestionsSchema = {
-    type: Type.OBJECT,
+    type: "OBJECT",
     properties: {
         positions: {
-            type: Type.ARRAY,
+            type: "ARRAY",
             description: "An array of new positions and sizes for each component.",
             items: {
-                type: Type.OBJECT,
+                type: "OBJECT",
                 properties: { 
-                    id: { type: Type.STRING }, 
-                    x: { type: Type.NUMBER }, 
-                    y: { type: Type.NUMBER },
+                    id: { type: "STRING" }, 
+                    x: { type: "NUMBER" }, 
+                    y: { type: "NUMBER" },
                 },
                 required: ['id', 'x', 'y']
             }
@@ -264,7 +289,7 @@ export async function generateLayoutSuggestions(components: WireframeComponent[]
     const prompt = `Arrange the following components in a '${layoutType}' layout. Keep some reasonable padding between them (e.g. 10-20px). The new arrangement should start near their current top-left bounding box of (${Math.round(boundingBox.minX)}, ${Math.round(boundingBox.minY)}). Components: ${JSON.stringify(componentData)}. Provide the new top-left x and y coordinates for each component.`;
     
     try {
-        const response = await ai.models.generateContent({
+        const response = await geminiProxy({
             model: 'gemini-2.5-flash',
             contents: prompt,
             config: { responseMimeType: 'application/json', responseSchema: layoutSuggestionsSchema }
@@ -318,7 +343,7 @@ const findClosestAspectRatio = (width: number, height: number): '1:1' | '3:4' | 
 export async function generateImage(prompt: string, width: number, height: number): Promise<string> {
     try {
         const aspectRatio = findClosestAspectRatio(width, height);
-        const response = await ai.models.generateImages({
+        const response = await geminiProxy({
             model: 'imagen-4.0-generate-001',
             prompt: prompt,
             config: {
@@ -337,36 +362,34 @@ export async function generateImage(prompt: string, width: number, height: numbe
         throw new Error("Failed to generate image from AI.");
     }
 }
-// Fix: Corrected and completed the themeGenerationSchema, which was previously malformed.
 const themeGenerationSchema = {
-    type: Type.OBJECT,
+    type: "OBJECT",
     properties: {
         colors: {
-            type: Type.OBJECT,
+            type: "OBJECT",
             properties: {
-                primary: { type: Type.STRING, description: "Primary color hex code (e.g., for buttons)." },
-                secondary: { type: Type.STRING, description: "Secondary color hex code (e.g., for borders)." },
-                accent: { type: Type.STRING, description: "Accent color hex code." },
-                textLight: { type: Type.STRING, description: "Text color for dark backgrounds." },
-                textDark: { type: Type.STRING, description: "Text color for light backgrounds." },
-                backgroundLight: { type: Type.STRING, description: "A light background color." },
+                primary: { type: "STRING", description: "Primary color hex code (e.g., for buttons)." },
+                secondary: { type: "STRING", description: "Secondary color hex code (e.g., for borders)." },
+                accent: { type: "STRING", description: "Accent color hex code." },
+                textLight: { type: "STRING", description: "Text color for dark backgrounds." },
+                textDark: { type: "STRING", description: "Text color for light backgrounds." },
+                backgroundLight: { type: "STRING", description: "A light background color." },
             },
             required: ['primary', 'secondary', 'textLight', 'textDark', 'backgroundLight']
         },
-        borderRadius: { type: Type.NUMBER, description: "A suitable border radius in pixels (e.g., 8)." },
-        fontWeight: { type: Type.STRING, description: "A suitable font weight (e.g., '500' or '600')." }
+        borderRadius: { type: "NUMBER", description: "A suitable border radius in pixels (e.g., 8)." },
+        fontWeight: { type: "STRING", description: "A suitable font weight (e.g., '500' or '600')." }
     },
     required: ['colors', 'borderRadius', 'fontWeight']
 };
 
-// Fix: Added the missing generateThemeFromImage function.
 export async function generateThemeFromImage(imageDataUrl: string): Promise<Theme> {
     const base64Data = imageDataUrl.split(',')[1];
     const imagePart = { inlineData: { mimeType: 'image/png', data: base64Data } };
     const textPart = { text: "Analyze this image and generate a color theme based on it. Provide primary, secondary, accent, text (light and dark), and background (light) colors. Also suggest a border radius and font weight. Respond with a JSON object that adheres to the provided schema." };
 
     try {
-        const response = await ai.models.generateContent({
+        const response = await geminiProxy({
             model: 'gemini-2.5-flash',
             contents: { parts: [imagePart, textPart] },
             config: { responseMimeType: 'application/json', responseSchema: themeGenerationSchema },
@@ -395,3 +418,4 @@ export async function generateThemeFromImage(imageDataUrl: string): Promise<Them
         throw new Error("Failed to generate theme from image.");
     }
 }
+''

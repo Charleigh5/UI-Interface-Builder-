@@ -54,9 +54,30 @@ const ToolItem: React.FC<{ tool: ToolDefinition; isActive: boolean; onClick: () 
 };
 
 
+import { useStore } from '../store/store';
+
+// ... (rest of the file is the same)
+
 export const Toolbar: React.FC = () => {
-    const { state, dispatch, groupComponents, generateTheme, analyzeSketch, setDrawingSetting, allEffectivelySelectedIds, convertImageToComponent } = useContext(AppContext);
-    const { isLeftSidebarVisible } = state;
+    const {
+        isLeftSidebarVisible,
+        theme,
+        currentTool,
+        drawingSettings,
+        components,
+        selectedComponentIds,
+        isConvertingImage,
+        isGeneratingTheme,
+        isAnalyzing,
+        allEffectivelySelectedIds,
+        setTool,
+        setTheme,
+        groupComponents,
+        generateTheme,
+        analyzeSketch,
+        setDrawingSetting,
+        convertImageToComponent,
+    } = useStore();
     const isCollapsed = !isLeftSidebarVisible;
 
     const themeFileInputRef = useRef<HTMLInputElement>(null);
@@ -98,7 +119,7 @@ export const Toolbar: React.FC = () => {
     };
 
     const handleThemeToggle = () => {
-        dispatch({ type: 'SET_THEME', payload: state.theme === 'light' ? 'dark' : 'light' });
+        setTheme(theme === 'light' ? 'dark' : 'light');
     };
 
     const handleAnalyze = () => {
@@ -116,7 +137,7 @@ export const Toolbar: React.FC = () => {
         window.dispatchEvent(analyzeEvent);
     };
     
-    const hasLockedSelection = state.components.some(c => allEffectivelySelectedIds.has(c.id) && c.isLocked);
+    const hasLockedSelection = components.some(c => allEffectivelySelectedIds.has(c.id) && c.isLocked);
 
     return (
         <aside className={`w-full h-full bg-slate-50 border-r border-slate-200 flex flex-col shadow-sm dark:bg-slate-800 dark:border-slate-700 transition-all duration-300 ${isCollapsed ? 'p-2' : 'p-4'}`}>
@@ -133,19 +154,19 @@ export const Toolbar: React.FC = () => {
                     <button
                         onClick={handleThemeToggle}
                         className="relative w-10 h-10 flex items-center justify-center rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-yellow-300 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
-                        aria-label={state.theme === 'light' ? 'Activate dark mode' : 'Activate light mode'}
+                        aria-label={theme === 'light' ? 'Activate dark mode' : 'Activate light mode'}
                     >
                         <div className="relative w-6 h-6">
                             <Icon 
                                 name="sun" 
                                 className={`absolute inset-0 w-6 h-6 transition-all duration-300 ease-in-out ${
-                                    state.theme === 'dark' ? 'opacity-0 transform -rotate-90 scale-50' : 'opacity-100 transform rotate-0 scale-100'
+                                    theme === 'dark' ? 'opacity-0 transform -rotate-90 scale-50' : 'opacity-100 transform rotate-0 scale-100'
                                 }`} 
                             />
                             <Icon 
                                 name="moon" 
                                 className={`absolute inset-0 w-6 h-6 transition-all duration-300 ease-in-out ${
-                                    state.theme === 'light' ? 'opacity-0 transform rotate-90 scale-50' : 'opacity-100 transform rotate-0 scale-100'
+                                    theme === 'light' ? 'opacity-0 transform rotate-90 scale-50' : 'opacity-100 transform rotate-0 scale-100'
                                 }`} 
                             />
                         </div>
@@ -163,8 +184,8 @@ export const Toolbar: React.FC = () => {
                             <ToolItem
                                 key={tool.id}
                                 tool={tool}
-                                isActive={state.currentTool === tool.id}
-                                onClick={() => dispatch({ type: 'SET_TOOL', payload: tool.id })}
+                                isActive={currentTool === tool.id}
+                                onClick={() => setTool(tool.id)}
                                 isCollapsed={isCollapsed}
                             />
                         ))}
@@ -174,16 +195,16 @@ export const Toolbar: React.FC = () => {
                 <div className={`flex-1 flex flex-col gap-6 overflow-hidden transition-opacity duration-300 ${isCollapsed ? 'opacity-0' : 'opacity-100'}`}>
                     <Library isCollapsed={isCollapsed}/>
 
-                    {(state.currentTool === 'pen' || state.currentTool === 'rectangle' || state.currentTool === 'circle') && (
+                    {(currentTool === 'pen' || currentTool === 'rectangle' || currentTool === 'circle') && (
                         <div className="border-t border-slate-200 dark:border-slate-700 pt-4">
                             <h3 className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3 px-2">Tool Options</h3>
                             <div className="flex flex-col gap-4 px-2">
-                                {state.currentTool === 'pen' && (
+                                {currentTool === 'pen' && (
                                     <>
                                         <div className="flex flex-col gap-1">
                                             <div className="flex items-center justify-between">
                                                 <label htmlFor="penWidth" className="text-sm font-medium text-slate-700 dark:text-slate-300">Width</label>
-                                                <span className="text-sm text-slate-500 dark:text-slate-400">{state.drawingSettings.penWidth}px</span>
+                                                <span className="text-sm text-slate-500 dark:text-slate-400">{drawingSettings.penWidth}px</span>
                                             </div>
                                             <input
                                                 id="penWidth"
@@ -191,7 +212,7 @@ export const Toolbar: React.FC = () => {
                                                 min="1"
                                                 max="20"
                                                 step="1"
-                                                value={state.drawingSettings.penWidth}
+                                                value={drawingSettings.penWidth}
                                                 onChange={(e) => setDrawingSetting('penWidth', parseInt(e.target.value, 10))}
                                                 className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer dark:bg-slate-700"
                                             />
@@ -199,7 +220,7 @@ export const Toolbar: React.FC = () => {
                                         <div className="flex flex-col gap-1">
                                             <div className="flex items-center justify-between">
                                                 <label htmlFor="penOpacity" className="text-sm font-medium text-slate-700 dark:text-slate-300">Opacity</label>
-                                                <span className="text-sm text-slate-500 dark:text-slate-400">{Math.round(state.drawingSettings.penOpacity * 100)}%</span>
+                                                <span className="text-sm text-slate-500 dark:text-slate-400">{Math.round(drawingSettings.penOpacity * 100)}%</span>
                                             </div>
                                             <input
                                                 id="penOpacity"
@@ -207,20 +228,20 @@ export const Toolbar: React.FC = () => {
                                                 min="0.1"
                                                 max="1"
                                                 step="0.1"
-                                                value={state.drawingSettings.penOpacity}
+                                                value={drawingSettings.penOpacity}
                                                 onChange={(e) => setDrawingSetting('penOpacity', parseFloat(e.target.value))}
                                                 className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer dark:bg-slate-700"
                                             />
                                         </div>
                                     </>
                                 )}
-                                {(state.currentTool === 'rectangle' || state.currentTool === 'circle') && (
+                                {(currentTool === 'rectangle' || currentTool === 'circle') && (
                                     <div className="flex items-center justify-between">
                                         <label htmlFor="shapeFill" className="text-sm font-medium text-slate-700 dark:text-slate-300">Fill Shape</label>
                                         <input
                                             id="shapeFill"
                                             type="checkbox"
-                                            checked={state.drawingSettings.shapeFill}
+                                            checked={drawingSettings.shapeFill}
                                             onChange={(e) => setDrawingSetting('shapeFill', e.target.checked)}
                                             className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:bg-slate-700 dark:border-slate-600 dark:focus:ring-blue-600 dark:ring-offset-slate-800"
                                         />
@@ -233,7 +254,7 @@ export const Toolbar: React.FC = () => {
                     <div className="mt-auto pt-6">
                         <button
                             onClick={groupComponents}
-                            disabled={state.selectedComponentIds.length < 2 || hasLockedSelection}
+                            disabled={selectedComponentIds.length < 2 || hasLockedSelection}
                             title={hasLockedSelection ? "Cannot group locked items" : "Group selected items"}
                             className="w-full flex items-center justify-center gap-2 px-4 py-2 mb-2 bg-slate-600 text-white rounded-lg font-semibold shadow-md hover:bg-slate-700 transition-shadow disabled:opacity-50 disabled:bg-slate-300 disabled:cursor-not-allowed dark:bg-slate-700 dark:hover:bg-slate-600 dark:disabled:bg-slate-600"
                         >
@@ -242,10 +263,10 @@ export const Toolbar: React.FC = () => {
                         </button>
                          <button
                             onClick={handleImageToComponentClick}
-                            disabled={state.isConvertingImage}
+                            disabled={isConvertingImage}
                             className="w-full flex items-center justify-center gap-2 px-4 py-2 mb-2 bg-indigo-600 text-white rounded-lg font-semibold shadow-md hover:bg-indigo-700 transition-shadow disabled:opacity-50 disabled:bg-slate-300 disabled:cursor-not-allowed dark:disabled:bg-slate-600"
                         >
-                            {state.isConvertingImage ? (
+                            {isConvertingImage ? (
                                 <>
                                     <Icon name="loader" className="w-5 h-5 animate-spin" />
                                     Converting...
@@ -260,10 +281,10 @@ export const Toolbar: React.FC = () => {
                         <input type="file" ref={imageToComponentInputRef} onChange={handleImageToComponentFileChange} accept="image/*" className="hidden" />
                          <button
                             onClick={handleThemeButtonClick}
-                            disabled={state.isGeneratingTheme}
+                            disabled={isGeneratingTheme}
                             className="w-full flex items-center justify-center gap-2 px-4 py-2 mb-2 bg-purple-600 text-white rounded-lg font-semibold shadow-md hover:bg-purple-700 transition-shadow disabled:opacity-50 disabled:bg-slate-300 disabled:cursor-not-allowed dark:disabled:bg-slate-600"
                         >
-                            {state.isGeneratingTheme ? (
+                            {isGeneratingTheme ? (
                                  <>
                                     <Icon name="loader" className="w-5 h-5 animate-spin" />
                                     Generating...
@@ -278,10 +299,10 @@ export const Toolbar: React.FC = () => {
                         <input type="file" ref={themeFileInputRef} onChange={handleThemeFileChange} accept="image/*" className="hidden" />
                          <button
                             onClick={handleAnalyze}
-                            disabled={state.isAnalyzing}
+                            disabled={isAnalyzing}
                             className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg font-semibold shadow-md hover:shadow-lg transition-shadow disabled:opacity-50 disabled:cursor-not-allowed dark:disabled:bg-slate-600"
                         >
-                            {state.isAnalyzing ? (
+                            {isAnalyzing ? (
                                  <>
                                     <Icon name="loader" className="w-5 h-5 animate-spin" />
                                     Analyzing...

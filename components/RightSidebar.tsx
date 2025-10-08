@@ -5,7 +5,7 @@ import { ComponentList } from './ComponentList';
 import { PropertiesPanel } from './PropertiesPanel';
 import { CodePanel } from './CodePanel';
 import { Icon } from './Icon';
-import { AppContext } from '../store/AppContext';
+import { useStore } from '../store/AppContext';
 
 type ActiveTab = 'layers' | 'code';
 
@@ -31,8 +31,23 @@ const StylePreview: React.FC<{ style: Partial<ComponentProperties>; onClick: () 
 };
 
 export const RightSidebar: React.FC = () => {
-    const { state, dispatch, bringToFront, sendToBack, alignComponents, generateContent, generateStyles, applyStyle, generateLayout, allEffectivelySelectedIds, duplicateComponents } = useContext(AppContext);
-    const { components, selectedComponentIds, styleSuggestions, isGeneratingStyles, isGeneratingLayout } = state;
+    const {
+        components,
+        selectedComponentIds,
+        styleSuggestions,
+        isGeneratingStyles,
+        isGeneratingLayout,
+        allEffectivelySelectedIds,
+        bringToFront,
+        sendToBack,
+        alignComponents,
+        generateContent,
+        generateStyles,
+        applyStyle,
+        generateLayout,
+        duplicateComponents,
+        clearStyleSuggestions,
+    } = useStore();
     
     const selectedComponent = selectedComponentIds.length === 1 ? components.find(c => c.id === selectedComponentIds[0]) || null : null;
     const hasLockedSelection = components.some(c => allEffectivelySelectedIds.has(c.id) && c.isLocked);
@@ -63,7 +78,7 @@ export const RightSidebar: React.FC = () => {
     };
 
     const onClearStyles = () => {
-        dispatch({ type: 'CLEAR_STYLE_SUGGESTIONS' });
+        clearStyleSuggestions();
     };
 
     const alignmentTools: { name: string; type: Alignment; icon: React.ComponentProps<typeof Icon>['name'] }[] = [

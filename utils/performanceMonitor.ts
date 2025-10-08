@@ -1,3 +1,5 @@
+import React from 'react';
+
 /**
  * Performance Monitor for Mobile UI
  * 
@@ -335,6 +337,3 @@ export function usePerformanceMonitoring(enabled: boolean = true): PerformanceMe
 
   return metrics;
 }
-
-// Add React import for the hook
-import React from 'react';

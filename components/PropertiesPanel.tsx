@@ -2,7 +2,7 @@ import React, { useState, useContext } from 'react';
 import { WireframeComponent, ComponentProperties } from '../library/types';
 import { Icon } from './Icon';
 import { generateImage } from '../library/services/geminiService';
-import { AppContext } from '../store/AppContext';
+import { useStore } from '../store/store';
 
 interface PropertiesPanelProps {
     component: WireframeComponent;
@@ -19,12 +19,12 @@ const PropertyInput: React.FC<{
 );
 
 export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ component }) => {
-    const { dispatch, ungroupComponents } = useContext(AppContext);
+    const { updateComponent, ungroupComponents } = useStore();
     const [imagePrompt, setImagePrompt] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
 
     const handleUpdateComponent = (id: string, updates: Partial<WireframeComponent>) => {
-        dispatch({ type: 'UPDATE_COMPONENT', payload: { id, updates } });
+        updateComponent(id, updates);
     };
 
     const handlePropertyChange = <K extends keyof ComponentProperties,>(key: K, value: ComponentProperties[K]) => {
