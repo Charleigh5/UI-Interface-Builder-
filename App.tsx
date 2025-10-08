@@ -1,7 +1,12 @@
 
 
 import React, { useContext, useEffect } from 'react';
+import { MobileLayout } from './components/mobile/MobileLayout';
+import { ResponsiveLayoutContainer } from './components/ResponsiveLayoutContainer';
+import { WebLayout } from './components/web/WebLayout';
+import { useMobileDetection } from './hooks/useMobileDetection';
 import { useStore } from './store/store';
+import { getPerformanceMonitor } from './utils/performanceMonitor';
 
 function AppContent() {
     const {
@@ -97,10 +102,10 @@ function AppContent() {
             const shouldPreventDefault = () => {
                 if (isMod && key === 'd') return true;
                 if (isMod && key === 'g') return true;
-                if (isMod && e.shiftKey && key === 'g') return true;
+                if (isMod && e.shiftKey && key === 'g') return selectedComponentIds.length > 0;
                 if (isMod && key === ']') return true;
                 if (isMod && key === '[') return true;
-                if (key === 'delete' || key === 'backspace') return state.selectedComponentIds.length > 0;
+                if (key === 'delete' || key === 'backspace') return selectedComponentIds.length > 0;
                 return false;
             };
 
@@ -170,9 +175,9 @@ function AppContent() {
         ungroupComponents, 
         bringToFront, 
         sendToBack, 
-        dispatch,
-        state.selectedComponentIds,
-        state.components
+        deleteComponent,
+        selectedComponentIds,
+        components
     ]);
 
     return (

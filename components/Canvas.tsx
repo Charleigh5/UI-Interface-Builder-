@@ -938,7 +938,7 @@ export const Canvas = () => {
       screenToWorld,
       getActionUnderCursor,
       selectComponent,
-      state.allEffectivelySelectedIds,
+      allEffectivelySelectedIds,
       theme,
     ]
   );
@@ -1088,11 +1088,10 @@ export const Canvas = () => {
       pan,
       zoom,
       setViewTransform,
-      dispatch,
       moveOffsets,
       originalComponents,
       activeResizeHandle,
-      state.allEffectivelySelectedIds,
+      allEffectivelySelectedIds,
     ]
   );
 
