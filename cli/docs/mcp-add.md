@@ -12,12 +12,12 @@ gemini mcp add [options] <serverName> <command...>
 
 ## Arguments
 
-*   `<serverName>` (Required): A unique name to identify the server process (e.g., `my-python-tools`).
-*   `<command...>` (Required): The full command required to start the server. This should be the executable followed by any necessary arguments.
+- `<serverName>` (Required): A unique name to identify the server process (e.g., `my-python-tools`).
+- `<command...>` (Required): The full command required to start the server. This should be the executable followed by any necessary arguments.
 
 ## Options
 
-*   `-e, --env <KEY=VALUE>`: Sets an environment variable for the server process. This option can be specified multiple times.
+- `-e, --env <KEY=VALUE>`: Sets an environment variable for the server process. This option can be specified multiple times.
 
 ## Example
 
