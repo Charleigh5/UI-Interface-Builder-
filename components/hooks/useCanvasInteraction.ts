@@ -1,9 +1,11 @@
 // components/hooks/useCanvasInteraction.ts
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { WireframeComponent, Tool, ThemeMode } from '../../library/types';
-import { rotatePoint } from '../../utils/canvasUtils';
 import { useActionDetection } from './useActionDetection';
-import { useMouseHandlers } from './useMouseHandlers';
+import { useComponentSelection } from './useComponentSelection';
+import { useComponentManipulation } from './useComponentManipulation';
+import { useCanvasState } from './useCanvasState';
+import { useInteractionHandlers } from './useInteractionHandlers';
 import { useDragAndDrop } from './useDragAndDrop';
 import { useWheelZoom } from './useWheelZoom';
 import { useCursorManagement } from './useCursorManagement';
@@ -61,8 +63,6 @@ export const useCanvasInteraction = ({
   setViewTransform,
   updateComponent,
 }: UseCanvasInteractionProps) => {
-  const [cursor, setCursor] = useState("default");
-
   // Action detection hook
   const { getActionUnderCursor } = useActionDetection({
     components,
@@ -74,36 +74,71 @@ export const useCanvasInteraction = ({
     zoom,
   });
 
-  // Mouse handlers hook
+  // Component selection hook
+  const { handleComponentSelection } = useComponentSelection({
+    components,
+    selectComponent,
+    triggerHapticFeedback,
+  });
+
+  // Component manipulation hook
+  const { startDrawing, finalizeDrawing } = useComponentManipulation({
+    addComponent,
+    selectComponent,
+    triggerHapticFeedback,
+    currentShape,
+    setCurrentShape,
+    setDrawnPaths,
+    addDrawingPoint,
+  });
+
+  // Canvas state hook
   const {
     action,
     setAction,
+    startPoint,
+    setStartPoint,
+    moveOffsets,
+    setMoveOffsets,
+    activeResizeHandle,
+    setActiveResizeHandle,
+    originalComponents,
+    setOriginalComponents,
+    cursor,
+    setCursor,
+    resetInteractionState,
+  } = useCanvasState();
+
+  // Interaction handlers hook
+  const {
     handleMouseDown,
     handleMouseMove,
     handleMouseUp,
-  } = useMouseHandlers({
-    currentTool,
-    components,
-    selectedComponentIds,
+  } = useInteractionHandlers({
+    action,
+    startPoint,
+    moveOffsets,
+    activeResizeHandle,
+    originalComponents,
     allEffectivelySelectedIds,
-    theme,
-    zoom,
+    updateComponent,
+    setViewTransform,
     pan,
+    zoom,
     isMobileMode,
-    screenToWorld,
-    getActionUnderCursor,
-    triggerHapticFeedback,
     addDrawingPoint,
-    drawnPaths,
-    setDrawnPaths,
     currentShape,
     setCurrentShape,
-    addComponent,
-    selectComponent,
-    setViewTransform,
-    updateComponent,
+    currentTool: currentTool as string,
     setCursor,
-    rotatePoint,
+    getActionUnderCursor,
+    components,
+    handleComponentSelection,
+    startDrawing,
+    finalizeDrawing,
+    resetInteractionState,
+    screenToWorld,
+    theme: theme as string,
   });
 
   // Drag and drop hook
