@@ -183,7 +183,7 @@ export const useCanvasInteraction = ({
             p.x >= handle.x &&
             p.x <= handle.x + handle.w &&
             p.y >= handle.y &&
-            p.y <= handle.y + handle.h
+            p.y <= handle.y + handle.w
           ) {
             return {
               action: handle.name === "rot" ? "rotating" : "resizing",
