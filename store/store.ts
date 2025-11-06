@@ -1,5 +1,4 @@
-
-import create from 'zustand';
+import { create } from 'zustand';
 import { WireframeComponent, Tool, Alignment, ComponentProperties, LayoutSuggestionType, ThemeMode, DrawingSettings, MobilePanelType } from '../library/types';
 import * as geminiService from '../library/services/geminiService';
 import { getDefaultProperties } from '../utils/componentUtils';
@@ -25,6 +24,7 @@ interface AppState {
     isMobileToolbarVisible: boolean;
     activeMobilePanel: MobilePanelType;
     toolbarPosition: 'bottom' | 'side';
+    allEffectivelySelectedIds: Set<string>; // Added this property to AppState
     
     setTool: (tool: Tool) => void;
     setTheme: (theme: ThemeMode) => void;
@@ -33,7 +33,25 @@ interface AppState {
     updateComponent: (id: string, updates: Partial<WireframeComponent>) => void;
     deleteComponent: (id: string) => void;
     setSelectedComponents: (ids: string[]) => void;
-    // ... more actions to be added
+    groupComponents: () => void;
+    ungroupComponents: () => void;
+    bringToFront: () => void;
+    sendToBack: () => void;
+    duplicateComponents: () => void;
+    addLibraryComponent: (name: string, position: { x: number; y: number }) => void;
+    setViewTransform: (transform: { zoom?: number; pan?: { x: number; y: number } }) => void;
+    toggleLock: (id: string) => void;
+    alignComponents: (alignment: Alignment) => void;
+    generateContent: (prompt: string) => Promise<void>;
+    generateStyles: (prompt: string) => Promise<void>;
+    applyStyle: (style: Partial<ComponentProperties>) => void;
+    clearStyleSuggestions: () => void;
+    generateLayout: (layoutType: LayoutSuggestionType) => Promise<void>;
+    generateTheme: (imageDataUrl: string) => Promise<void>;
+    analyzeSketch: (imageDataUrl: string) => Promise<void>;
+    setDrawingSetting: (key: keyof DrawingSettings, value: number | boolean) => void;
+    convertImageToComponent: (imageDataUrl: string) => Promise<void>;
+    setMobileMode: (isMobile: boolean) => void;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -60,6 +78,7 @@ export const useStore = create<AppState>((set, get) => ({
     isMobileToolbarVisible: false,
     activeMobilePanel: 'none',
     toolbarPosition: 'bottom',
+    allEffectivelySelectedIds: new Set(), // Initialize the new property
 
     setTool: (tool) => set({ currentTool: tool }),
 
@@ -114,7 +133,7 @@ export const useStore = create<AppState>((set, get) => ({
         const addDescendantsToDelete = (groupId: string) => {
             toDelete.add(groupId);
             const group = state.components.find(c => c.id === groupId);
-            if (group?.type === 'group' && group.childIds) {
+            if (group && group.type === 'group' && group.childIds) { // Added type guard
                 group.childIds.forEach(childId => addDescendantsToDelete(childId));
             }
         };
@@ -205,7 +224,7 @@ export const useStore = create<AppState>((set, get) => ({
 
         const allComponentsById = new Map(state.components.map(c => [c.id, c]));
         const componentsToDuplicate = Array.from(allEffectivelySelectedIds)
-            .map(id => allComponentsById.get(id))
+            .map(id => allComponentsById.get(id as string)) // Cast id to string
             .filter((c): c is WireframeComponent => !!c);
         
         if (componentsToDuplicate.some(c => c.isLocked)) {
@@ -505,7 +524,7 @@ useStore.subscribe((state) => {
     const addAllChildren = (componentId: string) => {
         selectedIds.add(componentId);
         const component = allComponentsById.get(componentId);
-        if (component?.type === 'group' && component.childIds) {
+        if (component && component.type === 'group' && component.childIds) { // Added type guard
             component.childIds.forEach(childId => addAllChildren(childId));
         }
     };
@@ -514,5 +533,8 @@ useStore.subscribe((state) => {
         addAllChildren(id);
     });
     
-    Object.defineProperty(useStore.getState(), 'allEffectivelySelectedIds', { value: selectedIds, configurable: true });
+    // This line is problematic for TypeScript's static analysis.
+    // Instead of dynamically adding, we've now added it to the AppState interface.
+    // We'll update the state directly.
+    (useStore.getState() as AppState).allEffectivelySelectedIds = selectedIds;
 });

@@ -1,9 +1,8 @@
-
 import React, { useRef, useContext } from 'react';
 import { Tool } from '../library/types';
 import { Icon } from './Icon';
 import { Library } from './Library';
-import { AppContext } from '../store/AppContext';
+import { useStore } from '../store/store'; // Corrected import path
 
 interface ToolDefinition {
     id: Tool;
@@ -30,7 +29,8 @@ const ToolItem: React.FC<{ tool: ToolDefinition; isActive: boolean; onClick: () 
             title={isCollapsed ? `${tool.name} - ${tool.description}`: ''}
             className={`relative group/tooltip flex items-center p-2 rounded-lg cursor-pointer transition-all ${
                 isActive ? 'bg-blue-600 text-white shadow-md' : 'hover:bg-slate-200 dark:hover:bg-slate-700'
-            } ${isCollapsed ? 'justify-center' : ''}`}
+            }`}
+            style={{ justifyContent: isCollapsed ? 'center' : 'flex-start' }} // Apply conditional styling here
         >
             <div className={`flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-md ${isActive ? 'bg-white/20' : 'bg-slate-200 dark:bg-slate-700'}`}>
                 <Icon name={tool.icon} className={`w-5 h-5 ${isActive ? 'text-white' : 'text-blue-600 dark:text-blue-400'}`} />
@@ -54,10 +54,6 @@ const ToolItem: React.FC<{ tool: ToolDefinition; isActive: boolean; onClick: () 
 };
 
 
-import { useStore } from '../store/store';
-
-// ... (rest of the file is the same)
-
 export const Toolbar: React.FC = () => {
     const {
         isLeftSidebarVisible,
@@ -69,7 +65,7 @@ export const Toolbar: React.FC = () => {
         isConvertingImage,
         isGeneratingTheme,
         isAnalyzing,
-        allEffectivelySelectedIds,
+        allEffectivelySelectedIds, // Correctly destructured from useStore
         setTool,
         setTheme,
         groupComponents,

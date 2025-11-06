@@ -10,7 +10,7 @@ import {
   getComponentLabel,
   getDefaultProperties,
 } from "../utils/componentUtils";
-import { useStore } from "../store/store";
+import { useStore } from "../store/store"; // Ensure this is the correct import for useStore
 
 type Action =
   | "none"
@@ -159,10 +159,10 @@ export const Canvas = () => {
     drawingSettings,
     isMobileMode,
     isAnalyzing,
-    allEffectivelySelectedIds,
+    allEffectivelySelectedIds, 
     addComponent,
     addLibraryComponent,
-    selectComponent,
+    selectComponent, 
     setViewTransform,
     updateComponent,
   } = useStore();
@@ -940,6 +940,7 @@ export const Canvas = () => {
       selectComponent,
       allEffectivelySelectedIds,
       theme,
+      triggerHapticFeedback,
     ]
   );
 
@@ -1092,6 +1093,8 @@ export const Canvas = () => {
       originalComponents,
       activeResizeHandle,
       allEffectivelySelectedIds,
+      addDrawingPoint,
+      updateComponent,
     ]
   );
 
@@ -1121,7 +1124,7 @@ export const Canvas = () => {
     setActiveResizeHandle(null);
     setOriginalComponents(new Map());
     setMoveOffsets(new Map());
-  }, [action, currentShape, addComponent, selectComponent]);
+  }, [action, currentShape, addComponent, selectComponent, triggerHapticFeedback]);
 
   const handleDragOver = (e: React.DragEvent<HTMLCanvasElement>) => {
     e.preventDefault();

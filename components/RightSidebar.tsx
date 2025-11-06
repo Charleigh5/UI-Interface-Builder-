@@ -1,11 +1,10 @@
-
 import React, { useState, useContext } from 'react';
 import { Alignment, ComponentProperties, LayoutSuggestionType } from '../library/types';
 import { ComponentList } from './ComponentList';
 import { PropertiesPanel } from './PropertiesPanel';
 import { CodePanel } from './CodePanel';
 import { Icon } from './Icon';
-import { useStore } from '../store/AppContext';
+import { useStore } from '../store/store'; // Corrected import path
 
 type ActiveTab = 'layers' | 'code';
 
@@ -121,7 +120,7 @@ export const RightSidebar: React.FC = () => {
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto p-4">
-                {activeTab === 'layers' ? <ComponentList /> : <CodePanel />}
+                {activeTab === 'layers' ? <ComponentList /> : <CodePanel components={components} />}
             </div>
 
             {/* Properties Panel */}

@@ -1,4 +1,3 @@
-'''
 import { WireframeComponent, ComponentProperties, LayoutSuggestionType, ThemeMode } from '../types';
 import { getDefaultProperties } from "../../utils/componentUtils";
 
@@ -251,7 +250,7 @@ export async function generateStyleVariations(prompt: string, components: Wirefr
         config: { responseMimeType: "application/json", responseSchema: styleSuggestionsSchema }
     });
     const jsonText = response.text?.trim();
-    if (!jsonText) {.
+    if (!jsonText) {
         console.warn("Gemini returned empty JSON for style variations.");
         return [];
     }
@@ -418,4 +417,3 @@ export async function generateThemeFromImage(imageDataUrl: string): Promise<Them
         throw new Error("Failed to generate theme from image.");
     }
 }
-''

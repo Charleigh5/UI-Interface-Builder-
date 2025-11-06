@@ -1,4 +1,3 @@
-
 import React, { createContext, useReducer, useCallback, ReactNode, useMemo } from 'react';
 import { WireframeComponent, Tool, Alignment, ComponentProperties, LayoutSuggestionType, ThemeMode, AppAction, DrawingSettings, MobileState, MobilePanelType } from '../library/types';
 import * as geminiService from '../library/services/geminiService';
@@ -21,6 +20,7 @@ interface AppState extends MobileState {
     isRightSidebarVisible: boolean;
     isLeftSidebarVisible: boolean;
     drawingSettings: DrawingSettings;
+    allEffectivelySelectedIds: Set<string>; // Added this property to AppState
 }
 
 const initialState: AppState = {
@@ -48,6 +48,7 @@ const initialState: AppState = {
     isMobileToolbarVisible: false,
     activeMobilePanel: 'none',
     toolbarPosition: 'bottom',
+    allEffectivelySelectedIds: new Set(), // Initialize the new property
 };
 
 const appReducer = (state: AppState, action: AppAction): AppState => {
@@ -109,8 +110,8 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
                 const allComponentsById = new Map(state.components.map(c => [c.id, c]));
                 const getAllDescendantIds = (groupId: string): string[] => {
                     const group = allComponentsById.get(groupId);
-                    if (!group?.childIds) return [];
-                    return group.childIds.flatMap(childId => [childId, ...getAllDescendantIds(childId)]);
+                    if (group && group.type === 'group' && group.childIds) return group.childIds.flatMap(childId => [childId, ...getAllDescendantIds(childId)]); // Added type guard
+                    return [];
                 };
                 const descendantIds = new Set(getAllDescendantIds(id));
                 
@@ -133,7 +134,7 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
             const addDescendantsToDelete = (groupId: string) => {
                 toDelete.add(groupId);
                 const group = state.components.find(c => c.id === groupId);
-                if (group?.type === 'group' && group.childIds) {
+                if (group && group.type === 'group' && group.childIds) { // Added type guard
                     group.childIds.forEach(childId => addDescendantsToDelete(childId));
                 }
             };
@@ -307,7 +308,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         
         const findTopLevelGroup = (componentId: string): string => {
             const component = allComponentsById.get(componentId);
-            if (component?.groupId) {
+            if (component && component.groupId) { // Added type guard
                 return findTopLevelGroup(component.groupId);
             }
             return componentId;
@@ -341,7 +342,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             const componentsToUpdate = new Map<string, { isLocked: boolean }>();
             
             const updateLockStateRecursive = (componentId: string) => {
-                const comp = state.components.find(c => c.id === componentId);
+                const comp = allComponentsById.get(componentId); // Use allComponentsById here
                 if (comp) {
                     componentsToUpdate.set(comp.id, { isLocked: newLockState });
                     if (comp.type === 'group' && comp.childIds) {
@@ -350,6 +351,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
                 }
             };
             
+            const allComponentsById = new Map(state.components.map(c => [c.id, c])); // Define here
             updateLockStateRecursive(id);
 
             componentsToUpdate.forEach((updates, componentId) => {
@@ -521,7 +523,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         state.selectedComponentIds.forEach(id => {
             const component = state.components.find(c => c.id === id);
             if (component) {
-                 dispatch({ type: 'UPDATE_COMPONENT', payload: { id, updates: { properties: { ...component.properties, ...style } } } });
+                 dispatch({ type: 'UPDATE_COMPONENT', payload: { id, updates: { properties: { ...component.properties, ...style } } });
             }
         });
     }, [state.components, state.selectedComponentIds]);
@@ -627,7 +629,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const addAllChildren = (componentId: string) => {
             selectedIds.add(componentId);
             const component = allComponentsById.get(componentId);
-            if (component?.type === 'group' && component.childIds) {
+            if (component && component.type === 'group' && component.childIds) { // Added type guard
                 component.childIds.forEach(childId => addAllChildren(childId));
             }
         };
@@ -645,7 +647,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const allComponentsById = new Map(state.components.map(c => [c.id, c]));
         // Fix: Use a type guard with `.filter()` to ensure correct type inference and prevent errors with `unknown` types.
         const componentsToDuplicate = Array.from(allEffectivelySelectedIds)
-            .map(id => allComponentsById.get(id))
+            .map(id => allComponentsById.get(id as string)) // Cast id to string
             .filter((c): c is WireframeComponent => !!c);
         
         if (componentsToDuplicate.some(c => c.isLocked)) {

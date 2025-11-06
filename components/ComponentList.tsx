@@ -1,8 +1,7 @@
-
 import React, { useState, useContext, useMemo } from 'react';
 import { WireframeComponent } from '../library/types';
 import { Icon } from './Icon';
-import { useStore } from '../store/store';
+import { useStore } from '../store/store'; // Corrected import path
 
 const ComponentItem: React.FC<{
     component: WireframeComponent;
