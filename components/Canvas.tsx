@@ -1,15 +1,15 @@
-import React, { useContext, useEffect } from 'react';
-import { useStore } from '../store/store';
-import { AppContext } from '../store/AppContext';
-import { useHapticFeedback } from './hooks/useHapticFeedback';
-import { useCoordinateTransformations } from './hooks/useCoordinateTransformations';
-import { useHandleCalculations } from './hooks/useHandleCalculations';
-import { useDrawingTools } from './hooks/useDrawingTools';
-import { useCanvasDrawing } from './hooks/useCanvasDrawing';
-import { useCanvasInteraction } from './hooks/useCanvasInteraction';
-import { useCanvasSetup } from './hooks/useCanvasSetup';
+import React, { useEffect } from "react";
+import { useStore } from "../store/store";
+import { useHapticFeedback } from "./hooks/useHapticFeedback";
+import { useCoordinateTransformations } from "./hooks/useCoordinateTransformations";
+import { useHandleCalculations } from "./hooks/useHandleCalculations";
+import { useDrawingTools } from "./hooks/useDrawingTools";
+import { useCanvasDrawing } from "./hooks/useCanvasDrawing";
+import { useCanvasInteraction } from "./hooks/useCanvasInteraction";
+import { useGestures } from "./hooks/useGestures";
+import { useCanvasSetup } from "./hooks/useCanvasSetup";
 
-export const Canvas: React.FC = () => {
+export const Canvas = () => {
   const {
     components,
     selectedComponentIds,
@@ -23,27 +23,38 @@ export const Canvas: React.FC = () => {
     allEffectivelySelectedIds,
     addComponent,
     addLibraryComponent,
+    selectComponent,
     setViewTransform,
     updateComponent,
   } = useStore();
 
-  const { selectComponent } = useContext(AppContext);
-
+  // Hooks for modularity
   const { triggerHapticFeedback } = useHapticFeedback(isMobileMode);
-  const { getHandleSize, getRotationHandleOffset, getTouchArea } =
-    useHandleCalculations(isMobileMode, zoom);
-  const {
-    drawnPaths,
-    setDrawnPaths,
+  const { getHandleSize, getRotationHandleOffset, getTouchArea } = useHandleCalculations(isMobileMode, zoom);
+  const { drawnPaths, setDrawnPaths, currentShape, setCurrentShape, addDrawingPoint } = useDrawingTools(isMobileMode);
+
+  // Canvas setup and drawing
+  const { canvasRef } = useCanvasSetup((ctx) => draw(ctx)); // Pass draw function to setup hook
+
+  const { draw, imageCache } = useCanvasDrawing(
+    canvasRef,
+    components,
+    selectedComponentIds,
+    theme,
+    zoom,
+    pan,
+    drawingSettings,
+    interaction.action, // Use action from interaction hook
     currentShape,
-    setCurrentShape,
-    addDrawingPoint,
-  } = useDrawingTools(isMobileMode);
+    drawnPaths,
+    isMobileMode,
+    getHandleSize,
+    getRotationHandleOffset
+  );
 
-  const { canvasRef } = useCanvasSetup(() => {});
+  const { getCanvasCoordinates, screenToWorld } = useCoordinateTransformations(pan, zoom, canvasRef);
 
-  const { screenToWorld } = useCoordinateTransformations(pan, zoom, canvasRef);
-
+  // Interaction logic
   const interaction = useCanvasInteraction({
     canvasRef,
     currentTool,
@@ -71,28 +82,16 @@ export const Canvas: React.FC = () => {
     updateComponent,
   });
 
-  const { draw } = useCanvasDrawing(
-    canvasRef,
-    components,
-    selectedComponentIds,
-    theme,
+  // Gesture logic (mobile specific)
+  const { handleTouchStart, handleTouchMove, handleTouchEnd, isGesturing } = useGestures({
+    isMobileMode,
     zoom,
     pan,
-    drawingSettings,
-    interaction.action,
-    currentShape,
-    drawnPaths,
-    isMobileMode,
-    getHandleSize,
-    getRotationHandleOffset
-  );
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (ctx) draw(ctx);
-  }, [canvasRef, draw]);
+    setViewTransform,
+    setAction: interaction.setAction, // Pass setAction from interaction hook
+    handleMouseUp: interaction.handleMouseUp, // Pass handleMouseUp from interaction hook
+    canvasRef,
+  });
 
   useEffect(() => {
     if (isAnalyzing) {
@@ -107,13 +106,13 @@ export const Canvas: React.FC = () => {
       onMouseDown={interaction.handleMouseDown}
       onMouseMove={interaction.handleMouseMove}
       onMouseUp={interaction.handleMouseUp}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
       onDragOver={interaction.handleDragOver}
       onDrop={interaction.handleDrop}
       onWheel={interaction.handleWheel}
-      style={{
-        cursor: interaction.cursor,
-        touchAction: isMobileMode ? 'none' : 'auto',
-      }}
+      style={{ cursor: interaction.cursor, touchAction: isMobileMode ? "none" : "auto" }}
     />
   );
 };

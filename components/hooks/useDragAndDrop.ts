@@ -1,4 +1,6 @@
-import React, { useCallback } from 'react';
+// components/hooks/useDragAndDrop.ts
+import { useCallback } from 'react';
+import { WireframeComponent } from '../../library/types';
 
 interface UseDragAndDropProps {
   addLibraryComponent: (name: string, position: { x: number; y: number }) => void;
@@ -13,18 +15,15 @@ export const useDragAndDrop = ({
     e.preventDefault();
   }, []);
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent<HTMLCanvasElement>) => {
-      e.preventDefault();
-      const itemName = e.dataTransfer.getData('library-item-name');
-      if (itemName) {
-        const screenCoords = { x: e.clientX, y: e.clientY };
-        const worldCoords = screenToWorld(screenCoords);
-        addLibraryComponent(itemName, worldCoords);
-      }
-    },
-    [screenToWorld, addLibraryComponent]
-  );
+  const handleDrop = useCallback((e: React.DragEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    const itemName = e.dataTransfer.getData("library-item-name");
+    if (itemName) {
+      const screenCoords = { x: e.clientX, y: e.clientY };
+      const worldCoords = screenToWorld(screenCoords);
+      addLibraryComponent(itemName, worldCoords);
+    }
+  }, [screenToWorld, addLibraryComponent]);
 
   return { handleDragOver, handleDrop };
 };
