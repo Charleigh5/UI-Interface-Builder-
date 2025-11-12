@@ -1,5 +1,4 @@
-// components/hooks/useCursorManagement.ts
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 
 interface UseCursorManagementProps {
   canvasRef: React.RefObject<HTMLCanvasElement>;
