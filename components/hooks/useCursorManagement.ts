@@ -1,15 +1,11 @@
-// components/hooks/useCursorManagement.ts
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 
 interface UseCursorManagementProps {
   canvasRef: React.RefObject<HTMLCanvasElement>;
   cursor: string;
 }
 
-export const useCursorManagement = ({
-  canvasRef,
-  cursor,
-}: UseCursorManagementProps) => {
+export const useCursorManagement = ({ canvasRef, cursor }: UseCursorManagementProps) => {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (canvas) {

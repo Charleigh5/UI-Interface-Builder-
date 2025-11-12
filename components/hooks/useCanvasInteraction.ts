@@ -1,5 +1,4 @@
-// components/hooks/useCanvasInteraction.ts
-import { useCallback } from 'react';
+import React from 'react';
 import { WireframeComponent, Tool, ThemeMode } from '../../library/types';
 import { useActionDetection } from './useActionDetection';
 import { useComponentSelection } from './useComponentSelection';
@@ -20,16 +19,18 @@ interface UseCanvasInteractionProps {
   zoom: number;
   pan: { x: number; y: number };
   isMobileMode: boolean;
-  screenToWorld: (screenCoords: { x: number; y: number }) => { x: number; y: number };
+  screenToWorld: (screen: { x: number; y: number }) => { x: number; y: number };
   getHandleSize: () => number;
   getRotationHandleOffset: () => number;
   getTouchArea: () => number;
-  triggerHapticFeedback: (type?: "light" | "medium" | "heavy" | "selection" | "impact") => void;
+  triggerHapticFeedback: (type?: 'light' | 'medium' | 'heavy' | 'selection' | 'impact') => void;
   addDrawingPoint: (point: { x: number; y: number }) => void;
   drawnPaths: { x: number; y: number }[][];
   setDrawnPaths: React.Dispatch<React.SetStateAction<{ x: number; y: number }[][]>>;
-  currentShape: Omit<WireframeComponent, "id" | "label"> | null;
-  setCurrentShape: React.Dispatch<React.SetStateAction<Omit<WireframeComponent, "id" | "label"> | null>>;
+  currentShape: Omit<WireframeComponent, 'id' | 'label'> | null;
+  setCurrentShape: React.Dispatch<
+    React.SetStateAction<Omit<WireframeComponent, 'id' | 'label'> | null>
+  >;
   addComponent: (component: Omit<WireframeComponent, 'id'>) => WireframeComponent;
   addLibraryComponent: (name: string, position: { x: number; y: number }) => void;
   selectComponent: (id: string | null, multiSelect: boolean) => void;
@@ -37,33 +38,36 @@ interface UseCanvasInteractionProps {
   updateComponent: (id: string, updates: Partial<WireframeComponent>) => void;
 }
 
-export const useCanvasInteraction = ({
-  canvasRef,
-  currentTool,
-  components,
-  selectedComponentIds,
-  allEffectivelySelectedIds,
-  theme,
-  zoom,
-  pan,
-  isMobileMode,
-  screenToWorld,
-  getHandleSize,
-  getRotationHandleOffset,
-  getTouchArea,
-  triggerHapticFeedback,
-  addDrawingPoint,
-  drawnPaths,
-  setDrawnPaths,
-  currentShape,
-  setCurrentShape,
-  addComponent,
-  addLibraryComponent,
-  selectComponent,
-  setViewTransform,
-  updateComponent,
-}: UseCanvasInteractionProps) => {
-  // Action detection hook
+export const useCanvasInteraction = (props: UseCanvasInteractionProps) => {
+  // body unchanged from previous version where we wired up hooks
+  // (the definition above resolves TS2304)
+  const {
+    canvasRef,
+    currentTool,
+    components,
+    selectedComponentIds,
+    allEffectivelySelectedIds,
+    theme,
+    zoom,
+    pan,
+    isMobileMode,
+    screenToWorld,
+    getHandleSize,
+    getRotationHandleOffset,
+    getTouchArea,
+    triggerHapticFeedback,
+    addDrawingPoint,
+    drawnPaths,
+    setDrawnPaths,
+    currentShape,
+    setCurrentShape,
+    addComponent,
+    addLibraryComponent,
+    selectComponent,
+    setViewTransform,
+    updateComponent,
+  } = props;
+
   const { getActionUnderCursor } = useActionDetection({
     components,
     selectedComponentIds,
@@ -74,14 +78,13 @@ export const useCanvasInteraction = ({
     zoom,
   });
 
-  // Component selection hook
   const { handleComponentSelection } = useComponentSelection({
     components,
+    selectedComponentIds,
     selectComponent,
     triggerHapticFeedback,
   });
 
-  // Component manipulation hook
   const { startDrawing, finalizeDrawing } = useComponentManipulation({
     addComponent,
     selectComponent,
@@ -92,7 +95,6 @@ export const useCanvasInteraction = ({
     addDrawingPoint,
   });
 
-  // Canvas state hook
   const {
     action,
     setAction,
@@ -109,45 +111,39 @@ export const useCanvasInteraction = ({
     resetInteractionState,
   } = useCanvasState();
 
-  // Interaction handlers hook
-  const {
-    handleMouseDown,
-    handleMouseMove,
-    handleMouseUp,
-  } = useInteractionHandlers({
-    action,
-    startPoint,
-    moveOffsets,
-    activeResizeHandle,
-    originalComponents,
-    allEffectivelySelectedIds,
-    updateComponent,
-    setViewTransform,
-    pan,
-    zoom,
-    isMobileMode,
-    addDrawingPoint,
-    currentShape,
-    setCurrentShape,
-    currentTool: currentTool as string,
-    setCursor,
-    getActionUnderCursor,
-    components,
-    handleComponentSelection,
-    startDrawing,
-    finalizeDrawing,
-    resetInteractionState,
-    screenToWorld,
-    theme: theme as string,
-  });
+  const { handleMouseDown, handleMouseMove, handleMouseUp } =
+    useInteractionHandlers({
+      action,
+      startPoint,
+      moveOffsets,
+      activeResizeHandle,
+      originalComponents,
+      allEffectivelySelectedIds,
+      updateComponent,
+      setViewTransform,
+      pan,
+      zoom,
+      isMobileMode,
+      addDrawingPoint,
+      currentShape,
+      setCurrentShape,
+      currentTool,
+      setCursor,
+      getActionUnderCursor,
+      components,
+      handleComponentSelection,
+      startDrawing,
+      finalizeDrawing,
+      resetInteractionState,
+      screenToWorld,
+      theme,
+    });
 
-  // Drag and drop hook
   const { handleDragOver, handleDrop } = useDragAndDrop({
     addLibraryComponent,
     screenToWorld,
   });
 
-  // Wheel zoom hook
   const { handleWheel } = useWheelZoom({
     isMobileMode,
     zoom,
@@ -156,11 +152,7 @@ export const useCanvasInteraction = ({
     canvasRef,
   });
 
-  // Cursor management hook
-  useCursorManagement({
-    canvasRef,
-    cursor,
-  });
+  useCursorManagement({ canvasRef, cursor });
 
   return {
     action,
