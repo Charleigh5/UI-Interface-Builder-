@@ -1,52 +1,137 @@
-const duplicateComponents = useCallback(() => {
-    if (state.selectedComponentIds.length === 0) return;
+import React, {
+  createContext,
+  useContext,
+  useCallback,
+  ReactNode,
+} from 'react';
+import { useStore } from './store';
+import {
+  Alignment,
+  LayoutSuggestionType,
+  MobilePanelType,
+} from '../library/types';
 
-    const byId = new Map<string, WireframeComponent>(
-      state.components.map(c => [c.id, c])
-    );
+export interface AppContextValue {
+  // full zustand state snapshot (components expect `state.xxx`)
+  state: ReturnType<typeof useStore>;
+  // selection
+  selectComponent: (id: string | null, multiSelect: boolean) => void;
+  // layout toggles (web)
+  toggleRightSidebar: () => void;
+  toggleLeftSidebar: () => void;
+  // mobile UI controls
+  toggleMobileToolbar: () => void;
+  setActiveMobilePanel: (panel: MobilePanelType) => void;
+  // component helpers
+  toggleLock: (id: string) => void;
+  groupComponents: () => void;
+  ungroupComponents: () => void;
+  bringToFront: () => void;
+  sendToBack: () => void;
+  duplicateComponents: () => void;
+  alignComponents: (alignment: Alignment) => void;
+  // AI/layout helper
+  generateLayout: (layoutType: LayoutSuggestionType) => Promise<void>;
+  // view transform
+  setViewTransform: (t: {
+    zoom?: number;
+    pan?: { x: number; y: number };
+  }) => void;
+}
 
-    const toCopy = Array.from(allEffectivelySelectedIds)
-      .map(id => byId.get(id as string))
-      .filter((c): c is WireframeComponent => !!c);
+export const AppContext = createContext<AppContextValue | undefined>(
+  undefined
+);
 
-    if (toCopy.some(c => c.isLocked)) {
-      alert('Cannot duplicate locked components.');
-      return;
-    }
+export const AppProvider: React.FC<{ children: ReactNode }> = ({
+  children,
+}) => {
+  const fullState = useStore();
 
-    const idMap = new Map<string, string>();
-    toCopy.forEach(c => {
-      idMap.set(
-        c.id,
-        Date.now().toString() + Math.random().toString(36).substring(2, 9)
-      );
-    });
+  // Selection uses zustand setters directly to avoid stale closures
+  const selectComponent = useCallback(
+    (id: string | null, multiSelect: boolean) => {
+      const { selectedComponentIds, setSelectedComponents } =
+        useStore.getState();
 
-    const newComponents = toCopy.map(c => ({
-      ...c,
-      id: idMap.get(c.id)!,
-      x: c.x + 20,
-      y: c.y + 20,
-      label: `${c.label} (Copy)`,
-      groupId: c.groupId ? idMap.get(c.groupId) : undefined,
-      childIds: c.childIds?.map(childId => idMap.get(childId)!).filter(Boolean),
+      if (id === null) {
+        setSelectedComponents([]);
+        return;
+      }
+
+      if (multiSelect) {
+        const exists = selectedComponentIds.includes(id);
+        const next = exists
+          ? selectedComponentIds.filter(x => x !== id)
+          : [...selectedComponentIds, id];
+        setSelectedComponents(next);
+      } else {
+        setSelectedComponents([id]);
+      }
+    },
+    []
+  );
+
+  const toggleRightSidebar = useCallback(() => {
+    useStore.setState(s => ({
+      isRightSidebarVisible: !s.isRightSidebarVisible,
     }));
+  }, []);
 
-    const newTopSelected =
-      state.selectedComponentIds
-        .map(id => idMap.get(id)!)
-        .filter(Boolean);
+  const toggleLeftSidebar = useCallback(() => {
+    useStore.setState(s => ({
+      isLeftSidebarVisible: !s.isLeftSidebarVisible,
+    }));
+  }, []);
 
-    dispatch({
-      type: 'ADD_COMPONENTS',
-      payload: newComponents,
-    });
-    dispatch({
-      type: 'SET_SELECTED_COMPONENTS',
-      payload: newTopSelected,
-    });
-  }, [
-    state.components,
-    state.selectedComponentIds,
-    allEffectivelySelectedIds,
-  ]);
+  const toggleMobileToolbar = useCallback(() => {
+    useStore.setState(s => ({
+      isMobileToolbarVisible: !s.isMobileToolbarVisible,
+    }));
+  }, []);
+
+  const setActiveMobilePanel = useCallback((panel: MobilePanelType) => {
+    useStore.setState({ activeMobilePanel: panel });
+  }, []);
+
+  // Simple passthroughs to zustand actions
+  const toggleLock = useStore(s => s.toggleLock);
+  const groupComponents = useStore(s => s.groupComponents);
+  const ungroupComponents = useStore(s => s.ungroupComponents);
+  const bringToFront = useStore(s => s.bringToFront);
+  const sendToBack = useStore(s => s.sendToBack);
+  const duplicateComponents = useStore(s => s.duplicateComponents);
+  const alignComponents = useStore(s => s.alignComponents);
+  const generateLayout = useStore(s => s.generateLayout);
+  const setViewTransform = useStore(s => s.setViewTransform);
+
+  const value: AppContextValue = {
+    state: fullState,
+    selectComponent,
+    toggleRightSidebar,
+    toggleLeftSidebar,
+    toggleMobileToolbar,
+    setActiveMobilePanel,
+    toggleLock,
+    groupComponents,
+    ungroupComponents,
+    bringToFront,
+    sendToBack,
+    duplicateComponents,
+    alignComponents,
+    generateLayout,
+    setViewTransform,
+  };
+
+  return (
+    <AppContext.Provider value={value}>{children}</AppContext.Provider>
+  );
+};
+
+export const useAppContext = (): AppContextValue => {
+  const ctx = useContext(AppContext);
+  if (!ctx) {
+    throw new Error('useAppContext must be used within AppProvider');
+  }
+  return ctx;
+};
