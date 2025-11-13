@@ -1,9 +1,4 @@
-import React, {
-  createContext,
-  useContext,
-  useCallback,
-  ReactNode,
-} from 'react';
+import React, { createContext, useContext, useCallback } from 'react';
 import { useStore } from './store';
 import {
   Alignment,
@@ -11,18 +6,19 @@ import {
   MobilePanelType,
 } from '../library/types';
 
+// The shape of the context that components expect
 export interface AppContextValue {
-  // full zustand state snapshot (components expect `state.xxx`)
+  // Full state snapshot (components expect `state.xxx`)
   state: ReturnType<typeof useStore>;
-  // selection
+  // Selection helpers
   selectComponent: (id: string | null, multiSelect: boolean) => void;
-  // layout toggles (web)
+  // Sidebar toggles (web)
   toggleRightSidebar: () => void;
   toggleLeftSidebar: () => void;
-  // mobile UI controls
+  // Mobile UI helpers
   toggleMobileToolbar: () => void;
   setActiveMobilePanel: (panel: MobilePanelType) => void;
-  // component helpers
+  // Component actions
   toggleLock: (id: string) => void;
   groupComponents: () => void;
   ungroupComponents: () => void;
@@ -30,29 +26,29 @@ export interface AppContextValue {
   sendToBack: () => void;
   duplicateComponents: () => void;
   alignComponents: (alignment: Alignment) => void;
-  // AI/layout helper
+  // AI/layout helpers
   generateLayout: (layoutType: LayoutSuggestionType) => Promise<void>;
-  // view transform
+  // View transform
   setViewTransform: (t: {
     zoom?: number;
     pan?: { x: number; y: number };
   }) => void;
 }
 
-export const AppContext = createContext<AppContextValue | undefined>(
-  undefined
-);
+// Create the context
+export const AppContext = createContext<AppContextValue | undefined>(undefined);
 
-export const AppProvider: React.FC<{ children: ReactNode }> = ({
+// Provider that wraps the app
+export const AppProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
+  // Use the Zustand store directly for the state snapshot
   const fullState = useStore();
 
-  // Selection uses zustand setters directly to avoid stale closures
+  // Selection – use Zustand directly to avoid stale closures
   const selectComponent = useCallback(
     (id: string | null, multiSelect: boolean) => {
-      const { selectedComponentIds, setSelectedComponents } =
-        useStore.getState();
+      const { selectedComponentIds, setSelectedComponents } = useStore.getState();
 
       if (id === null) {
         setSelectedComponents([]);
@@ -72,6 +68,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
     []
   );
 
+  // Simple passthroughs to Zustand actions
   const toggleRightSidebar = useCallback(() => {
     useStore.setState(s => ({
       isRightSidebarVisible: !s.isRightSidebarVisible,
@@ -94,7 +91,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
     useStore.setState({ activeMobilePanel: panel });
   }, []);
 
-  // Simple passthroughs to zustand actions
+  // Direct delegates to Zustand actions
   const toggleLock = useStore(s => s.toggleLock);
   const groupComponents = useStore(s => s.groupComponents);
   const ungroupComponents = useStore(s => s.ungroupComponents);
@@ -105,6 +102,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
   const generateLayout = useStore(s => s.generateLayout);
   const setViewTransform = useStore(s => s.setViewTransform);
 
+  // Assemble the context value
   const value: AppContextValue = {
     state: fullState,
     selectComponent,
@@ -123,11 +121,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({
     setViewTransform,
   };
 
-  return (
-    <AppContext.Provider value={value}>{children}</AppContext.Provider>
-  );
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 
+// Helper hook – throws if used outside of AppProvider
 export const useAppContext = (): AppContextValue => {
   const ctx = useContext(AppContext);
   if (!ctx) {
