@@ -1,14 +1,6 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 
-export const useGestures = ({
-  isMobile,
-  zoom,
-  pan,
-  setViewTransform,
-  setAction,
-  handleMouseUp,
-  canvasRef,
-}: {
+interface UseGesturesProps {
   isMobile: boolean;
   zoom: number;
   pan: { x: number; y: number };
@@ -18,7 +10,17 @@ export const useGestures = ({
   >;
   handleMouseUp: () => void;
   canvasRef: React.RefObject<HTMLCanvasElement>;
-}) => {
+}
+
+export const useGestures = ({
+  isMobile,
+  zoom,
+  pan,
+  setViewTransform,
+  setAction,
+  handleMouseUp,
+  canvasRef,
+}: UseGesturesProps) => {
   const [isGesturing, setIsGesturing] = useState(false);
   const initialDistanceRef = useRef(0);
   const initialZoomRef = useRef(zoom);
@@ -85,4 +87,4 @@ export const useGestures = ({
   }, [isMobile, isGesturing, setAction, handleMouseUp]);
 
   return { handleTouchStart, handleTouchMove, handleTouchEnd, isGesturing };
-}
+};
