@@ -1,28 +1,70 @@
 <!-- Service Worker Registration for PWA (Android/iOS) -->
     <script type="module">
       import { registerServiceWorker } from './utils/serviceWorkerRegistration.ts';
+      import { checkServiceWorkerHealth, isDevelopment } from './utils/pwaUtils.ts';
 
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', async () => {
+      // Run PWA initialization after DOM is loaded
+      window.addEventListener('DOMContentLoaded', async () => {
+        // Check service worker health first
+        const health = await checkServiceWorkerHealth();
+        console.log('🔍 Service Worker Health Check:', health);
+
+        // Only attempt registration if Service Worker is supported
+        if ('serviceWorker' in navigator) {
           try {
-            await registerServiceWorker({
-              onSuccess: (registration) => {
-                console.log('✅ ServiceWorker registered successfully:', registration.scope);
+            console.log('🚀 Starting PWA initialization...');
+            
+            // Try to register the service worker with comprehensive error handling
+            const registration = await registerServiceWorker({
+              onSuccess: (reg) => {
+                console.log('✅ ServiceWorker registered successfully!', {
+                  scope: reg.scope,
+                  state: reg.active?.state,
+                  updateTime: new Date().toISOString()
+                });
               },
-              onUpdate: (registration) => {
-                console.log('🔄 ServiceWorker update available');
+              onUpdate: (reg) => {
+                if (!isDevelopment()) {
+                  console.log('🔄 ServiceWorker update available');
+                  // Update notification will be shown by the registration manager
+                }
               },
               onError: (error) => {
-                console.warn('⚠️ ServiceWorker registration failed:', error.message);
-                // Don't block the app if service worker fails
+                console.warn('⚠️ ServiceWorker registration encountered an issue:', {
+                  message: error.message,
+                  stack: error.stack,
+                  timestamp: new Date().toISOString()
+                });
+                // Don't let service worker errors break the app
               }
             });
+
+            // Additional logging for development
+            if (isDevelopment() && registration) {
+              console.log('🔧 Development mode: Service Worker registered but update checks disabled');
+            }
+
           } catch (error) {
-            console.warn('⚠️ ServiceWorker registration error:', error);
-            // Don't let this break the app
+            // Catch any unexpected errors during initialization
+            console.warn('⚠️ PWA initialization failed:', error);
+            // The app should still work normally
           }
-        });
-      } else {
-        console.log('ℹ️ ServiceWorker not supported in this browser');
-      }
+        } else {
+          console.log('ℹ️ Service Worker not supported in this browser - PWA features disabled');
+        }
+      });
+
+      // Handle page visibility changes to check for updates
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && 'serviceWorker' in navigator) {
+          // Check for service worker updates when user returns to the tab
+          navigator.serviceWorker.getRegistration().then(reg => {
+            if (reg) {
+              reg.update().catch(() => {
+                // Silently fail update checks
+              });
+            }
+          });
+        }
+      });
     </script>

@@ -1,126 +1,166 @@
-const CACHE_NAME = 'ai-wireframe-designer-v1.0.0';
+const CACHE_NAME = 'ai-wireframe-designer-v1.0.1';
 const STATIC_CACHE_URLS = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png'
+  '/sw-check.js',
+  '/favicon.ico'
 ];
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
-  console.log('Service Worker installing...');
+  console.log('[SW] Installing service worker...');
   
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('Caching static assets');
-        return cache.addAll(STATIC_CACHE_URLS);
-      })
-      .then(() => {
-        console.log('Service Worker installed successfully');
+    (async () => {
+      try {
+        const cache = await caches.open(CACHE_NAME);
+        console.log('[SW] Caching static assets...');
+        await cache.addAll(STATIC_CACHE_URLS);
+        console.log('[SW] Static assets cached successfully');
         return self.skipWaiting();
-      })
-      .catch((error) => {
-        console.error('Service Worker install failed:', error);
-      })
+      } catch (error) {
+        console.error('[SW] Failed to cache static assets:', error);
+        // Don't fail the installation, just log the error
+        return self.skipWaiting();
+      }
+    })()
   );
 });
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('Service Worker activating...');
+  console.log('[SW] Activating service worker...');
   
   event.waitUntil(
-    caches.keys()
-      .then((cacheNames) => {
-        return Promise.all(
-          cacheNames.map((cacheName) => {
-            if (cacheName !== CACHE_NAME) {
-              console.log('Deleting old cache:', cacheName);
-              return caches.delete(cacheName);
-            }
-          })
-        );
-      })
-      .then(() => {
-        console.log('Service Worker activated');
+    (async () => {
+      try {
+        const cacheNames = await caches.keys();
+        const deletePromises = cacheNames
+          .filter(cacheName => cacheName !== CACHE_NAME)
+          .map(cacheName => {
+            console.log('[SW] Deleting old cache:', cacheName);
+            return caches.delete(cacheName);
+          });
+        
+        await Promise.all(deletePromises);
+        console.log('[SW] Cache cleanup completed');
         return self.clients.claim();
-      })
-      .catch((error) => {
-        console.error('Service Worker activation failed:', error);
-      })
+      } catch (error) {
+        console.error('[SW] Failed during activation:', error);
+        return self.clients.claim();
+      }
+    })()
   );
 });
 
 // Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', (event) => {
+  // Skip non-GET requests
   if (event.request.method !== 'GET') {
     return;
   }
 
+  // Skip chrome-extension and other non-http requests
   if (!event.request.url.startsWith('http')) {
     return;
   }
 
   event.respondWith(
-    caches.match(event.request)
-      .then((cachedResponse) => {
+    (async () => {
+      try {
+        // Try cache first
+        const cachedResponse = await caches.match(event.request);
         if (cachedResponse) {
-          console.log('Serving from cache:', event.request.url);
+          console.log('[SW] Serving from cache:', event.request.url);
           return cachedResponse;
         }
 
-        return fetch(event.request)
-          .then((response) => {
-            if (!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
-            }
+        // If not in cache, fetch from network
+        console.log('[SW] Fetching from network:', event.request.url);
+        const networkResponse = await fetch(event.request);
+        
+        // Don't cache if not a valid response
+        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
+          return networkResponse;
+        }
 
-            const responseToCache = response.clone();
+        // Cache successful responses for future use
+        try {
+          const cache = await caches.open(CACHE_NAME);
+          const responseToCache = networkResponse.clone();
+          await cache.put(event.request, responseToCache);
+        } catch (cacheError) {
+          console.warn('[SW] Failed to cache response:', cacheError);
+          // Don't fail the request if caching fails
+        }
 
-            caches.open(CACHE_NAME)
-              .then((cache) => {
-                cache.put(event.request, responseToCache);
-              })
-              .catch((error) => {
-                console.error('Failed to cache response:', error);
-              });
+        return networkResponse;
 
-            return response;
-          })
-          .catch((error) => {
-            console.error('Fetch failed:', error);
-            
-            if (event.request.mode === 'navigate') {
-              return caches.match('/') || caches.match('/index.html');
-            }
-            
-            throw error;
-          });
-      })
-      .catch((error) => {
-        console.error('Cache match failed:', error);
+      } catch (error) {
+        console.error('[SW] Fetch failed:', error);
+        
+        // For navigation requests, serve the main page as fallback
+        if (event.request.mode === 'navigate') {
+          const fallbackResponse = await caches.match('/') || await caches.match('/index.html');
+          if (fallbackResponse) {
+            return fallbackResponse;
+          }
+        }
+
+        // Return a network error response
         return new Response('Network error occurred', {
           status: 408,
-          statusText: 'Request Timeout'
+          statusText: 'Request Timeout',
+          headers: {
+            'Content-Type': 'text/plain'
+          }
         });
-      })
+      }
+    })()
   );
 });
 
 // Handle service worker updates
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('[SW] Skipping waiting - activating new service worker');
     self.skipWaiting();
   }
 });
 
-// Handle errors
+// Handle errors globally
 self.addEventListener('error', (event) => {
-  console.error('Service Worker error:', event.error);
+  console.error('[SW] Service Worker error:', event.error);
 });
 
 self.addEventListener('unhandledrejection', (event) => {
-  console.error('Service Worker unhandled promise rejection:', event.reason);
+  console.error('[SW] Service Worker unhandled promise rejection:', event.reason);
 });
+
+// Periodic cleanup (runs every 10 minutes)
+setInterval(async () => {
+  try {
+    const cache = await caches.open(CACHE_NAME);
+    const keys = await cache.keys();
+    
+    // Remove any requests older than 24 hours
+    const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+    
+    for (const request of keys) {
+      const response = await cache.match(request);
+      if (response) {
+        const dateHeader = response.headers.get('date');
+        if (dateHeader) {
+          const responseDate = new Date(dateHeader).getTime();
+          if (responseDate < oneDayAgo) {
+            await cache.delete(request);
+            console.log('[SW] Cleaned up old cached request:', request.url);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('[SW] Periodic cleanup failed:', error);
+  }
+}, 10 * 60 * 1000); // Every 10 minutes
