@@ -1,31 +1,17 @@
-import React, { useContext } from 'react';
-import { useStore } from '../store/store';
-
-interface ResponsiveLayoutContainerProps {
-    webUI: React.ReactNode;
-    mobileUI: React.ReactNode;
-}
+import React from 'react';
+import { useBreakpoint } from '../hooks/useBreakpoint';
 
 /**
- * ResponsiveLayoutContainer manages the rendering of dual mobile/web UI layouts.
- * 
- * Design Principles:
- * - Maintains separate layout trees for mobile and web interfaces
- * - Ensures seamless switching between UI modes based on isMobileMode state
- * - Preserves component state during layout transitions
- * - Uses conditional rendering for optimal performance
+ * Conditionally renders mobile or web UI based on current breakpoint.
+ * Mobile‑first: < 1024 px → mobile, ≥ 1024 px → web.
  */
-export const ResponsiveLayoutContainer: React.FC<ResponsiveLayoutContainerProps> = ({
-    webUI,
-    mobileUI
-}) => {
-    const { isMobileMode } = useStore();
+export const ResponsiveLayoutContainer: React.FC<{
+  webUI: React.ReactNode;
+  mobileUI: React.ReactNode;
+}> = ({ webUI, mobileUI }) => {
+  const { xl } = useBreakpoint();
+  const isMobile = !xl; // < 1024 px
 
-    // Use conditional rendering instead of CSS display to ensure proper component lifecycle
-    // This prevents issues with canvas sizing and event handling during mode switches
-    return (
-        <>
-            {isMobileMode ? mobileUI : webUI}
-        </>
-    );
+  // Conditional rendering preserves component lifecycles
+  return isMobile ? mobileUI : webUI;
 };

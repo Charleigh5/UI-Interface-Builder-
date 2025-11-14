@@ -1,28 +1,24 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-
-interface UseGesturesProps {
-  isMobileMode: boolean;
-  zoom: number;
-  pan: { x: number; y: number };
-  setViewTransform: (transform: { zoom?: number; pan?: { x: number; y: number } }) => void;
-  setAction: React.Dispatch<
-    React.SetStateAction<
-      'none' | 'drawing' | 'moving' | 'resizing' | 'rotating' | 'panning'
-    >
-  >;
-  handleMouseUp: () => void;
-  canvasRef: React.RefObject<HTMLCanvasElement>;
-}
+import { useState, useCallback, useRef, useEffect } from 'react';
 
 export const useGestures = ({
-  isMobileMode,
+  isMobile,
   zoom,
   pan,
   setViewTransform,
   setAction,
   handleMouseUp,
   canvasRef,
-}: UseGesturesProps) => {
+}: {
+  isMobile: boolean;
+  zoom: number;
+  pan: { x: number; y: number };
+  setViewTransform: (t: { zoom?: number; pan?: { x: number; y: number } }) => void;
+  setAction: React.Dispatch<
+    React.SetStateAction<'none' | 'drawing' | 'moving' | 'resizing' | 'rotating' | 'panning'>
+  >;
+  handleMouseUp: () => void;
+  canvasRef: React.RefObject<HTMLCanvasElement>;
+}) => {
   const [isGesturing, setIsGesturing] = useState(false);
   const initialDistanceRef = useRef(0);
   const initialZoomRef = useRef(zoom);
@@ -31,14 +27,12 @@ export const useGestures = ({
   const getDistance = (touches: TouchList) => {
     if (touches.length < 2) return 0;
     const [a, b] = [touches[0], touches[1]];
-    const dx = a.clientX - b.clientX;
-    const dy = a.clientY - b.clientY;
-    return Math.hypot(dx, dy);
+    return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
   };
 
   const handleTouchStart = useCallback(
     (e: React.TouchEvent<HTMLCanvasElement>) => {
-      if (!isMobileMode) return;
+      if (!isMobile) return;
       if (e.touches.length === 2) {
         initialDistanceRef.current = getDistance(e.touches);
         initialZoomRef.current = zoom;
@@ -47,39 +41,38 @@ export const useGestures = ({
         setAction('panning');
       }
     },
-    [isMobileMode, zoom, pan, setAction]
+    [isMobile, zoom, pan, setAction]
   );
 
   const handleTouchMove = useCallback(
     (e: React.TouchEvent<HTMLCanvasElement>) => {
-      if (!isMobileMode || !isGesturing || e.touches.length !== 2) return;
+      if (!isMobile || !isGesturing || e.touches.length !== 2) return;
       e.preventDefault();
 
-      const newDistance = getDistance(e.touches);
+      const newDist = getDistance(e.touches);
       if (!initialDistanceRef.current) return;
 
-      const scale = newDistance / initialDistanceRef.current;
+      const scale = newDist / initialDistanceRef.current;
       const newZoom = Math.max(0.1, Math.min(4, initialZoomRef.current * scale));
-
       setViewTransform({ zoom: newZoom, pan: initialPanRef.current });
     },
-    [isMobileMode, isGesturing, setViewTransform]
+    [isMobile, isGesturing, setViewTransform]
   );
 
   const handleTouchEnd = useCallback(
     (e: React.TouchEvent<HTMLCanvasElement>) => {
-      if (!isMobileMode) return;
+      if (!isMobile) return;
       if (e.touches.length < 2 && isGesturing) {
         setIsGesturing(false);
         setAction('none');
         handleMouseUp();
       }
     },
-    [isMobileMode, isGesturing, setAction, handleMouseUp]
+    [isMobile, isGesturing, setAction, handleMouseUp]
   );
 
   useEffect(() => {
-    if (!isMobileMode) return;
+    if (!isMobile) return;
     const onEnd = () => {
       if (isGesturing) {
         setIsGesturing(false);
@@ -89,7 +82,7 @@ export const useGestures = ({
     };
     window.addEventListener('touchend', onEnd);
     return () => window.removeEventListener('touchend', onEnd);
-  }, [isMobileMode, isGesturing, setAction, handleMouseUp]);
+  }, [isMobile, isGesturing, setAction, handleMouseUp]);
 
   return { handleTouchStart, handleTouchMove, handleTouchEnd, isGesturing };
 };

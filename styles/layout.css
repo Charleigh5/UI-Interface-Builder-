@@ -1,0 +1,63 @@
+/* ---------- Container Queries (when supported) ---------- */
+@supports (container-type: inline-size) {
+  .c-queries {
+    container-type: inline-size;
+  }
+}
+
+/* ---------- Mobile‑first grid for toolbars ---------- */
+.toolbar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(48px, 1fr));
+  gap: var(--space-2);
+}
+
+/* ---------- Safe area helpers ---------- */
+.safe-top {
+  padding-top: max(env(safe-area-inset-top), var(--space-4));
+}
+.safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom), var(--space-4));
+}
+.safe-left {
+  padding-left: max(env(safe-area-inset-left), var(--space-2));
+}
+.safe-right {
+  padding-right: max(env(safe-area-inset-right), var(--space-2));
+}
+
+/* ---------- Full‑screen mobile canvas container ---------- */
+.canvas-full {
+  position: relative;
+  width: 100svw;
+  height: 100svh;
+}
+
+/* ---------- Slide‑up panel base ---------- */
+.slide-panel {
+  transform: translateY(100%);
+  transition: transform var(--duration-panel) var(--easing-emphasized);
+}
+.slide-panel-enter {
+  transform: translateY(0);
+}
+
+/* ---------- Backdrop ---------- */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.3);
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  transition: opacity var(--duration-panel) var(--easing-emphasized);
+}
+.backdrop-enter {
+  opacity: 1;
+}
+
+/* ---------- Touch‑target minimums ---------- */
+.touch-min {
+  min-width: 44px;
+  min-height: 44px;
+  padding: var(--space-3);
+}

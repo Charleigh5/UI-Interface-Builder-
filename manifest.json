@@ -22,15 +22,5 @@
     }
   ],
   "categories": ["productivity", "design", "utilities"],
-  "screenshots": [],
-  "shortcuts": [
-    {
-      "name": "New Wireframe",
-      "short_name": "New",
-      "description": "Create a new wireframe",
-      "url": "/",
-      "icons": []
-    }
-  ],
   "prefer_related_applications": false
 }

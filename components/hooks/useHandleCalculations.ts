@@ -1,51 +1,23 @@
-// components/hooks/useHandleCalculations.ts
 import { useMemo } from 'react';
 
-// Desktop handle sizes
-const HANDLE_SIZE = 8;
-const ROTATION_HANDLE_OFFSET = 25;
+export const useHandleCalculations = (isMobile: boolean, zoom: number) => {
+  // Base visual size
+  const HANDLE_SIZE = isMobile ? 16 : 8;
+  const ROT_OFFSET = isMobile ? 35 : 25;
+  const MIN_TOUCH = 44; // dp
 
-// Mobile-optimized handle sizes (minimum 44px touch targets)
-const MOBILE_HANDLE_SIZE = 16;
-const MOBILE_ROTATION_HANDLE_OFFSET = 35;
-const MOBILE_MIN_TOUCH_TARGET = 44;
+  const getHandleSize = useMemo(() => () => {
+    const visual = HANDLE_SIZE / zoom;
+    return Math.max(visual, MIN_TOUCH / zoom);
+  }, [zoom, isMobile]);
 
-export const useHandleCalculations = (isMobileMode: boolean, zoom: number) => {
-  const getHandleSize = useMemo(() => {
-    return () => {
-      const baseSize = isMobileMode ? MOBILE_HANDLE_SIZE : HANDLE_SIZE;
-      const scaledSize = baseSize / zoom;
+  const getRotationOffset = useMemo(() () => ROT_OFFSET / zoom, [zoom, isMobile]);
 
-      // Ensure minimum 44px touch target in mobile mode
-      if (isMobileMode) {
-        const minTouchTarget = MOBILE_MIN_TOUCH_TARGET / zoom;
-        return Math.max(scaledSize, minTouchTarget);
-      }
+  const getTouchArea = useMemo(() => () => {
+    if (!isMobile) return getHandleSize();
+    // Touch target must be at least 44dp, visual can be smaller
+    return Math.max(MIN_TOUCH / zoom, HANDLE_SIZE / zoom * 1.5);
+  }, [isMobile, zoom, getHandleSize]);
 
-      return scaledSize;
-    };
-  }, [isMobileMode, zoom]);
-
-  const getRotationHandleOffset = useMemo(() => {
-    return () => {
-      const baseOffset = isMobileMode
-        ? MOBILE_ROTATION_HANDLE_OFFSET
-        : ROTATION_HANDLE_OFFSET;
-      return baseOffset / zoom;
-    };
-  }, [isMobileMode, zoom]);
-
-  const getTouchArea = useMemo(() => {
-    return () => {
-      if (!isMobileMode) return getHandleSize();
-
-      const minTouchArea = MOBILE_MIN_TOUCH_TARGET / zoom;
-      const visualHandle = MOBILE_HANDLE_SIZE / zoom;
-
-      // Touch area should be at least 44px but can be larger than visual handle
-      return Math.max(minTouchArea, visualHandle * 1.5);
-    };
-  }, [isMobileMode, zoom, getHandleSize]);
-
-  return { getHandleSize, getRotationHandleOffset, getTouchArea };
+  return { getHandleSize, getRotationOffset, getTouchArea };
 };

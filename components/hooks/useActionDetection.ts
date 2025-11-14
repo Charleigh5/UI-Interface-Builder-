@@ -1,14 +1,13 @@
-// components/hooks/useActionDetection.ts
 import { useCallback } from 'react';
 import { WireframeComponent } from '../../library/types';
 import { rotatePoint } from '../../utils/canvasUtils';
 
-type ResizeHandle = "tl" | "tm" | "tr" | "ml" | "mr" | "bl" | "bm" | "br";
+type ResizeHandle = 'tl' | 'tm' | 'tr' | 'ml' | 'mr' | 'bl' | 'bm' | 'br';
 
 interface UseActionDetectionProps {
   components: WireframeComponent[];
   selectedComponentIds: string[];
-  isMobileMode: boolean;
+  isMobile: boolean;
   getHandleSize: () => number;
   getRotationHandleOffset: () => number;
   getTouchArea: () => number;
@@ -16,142 +15,71 @@ interface UseActionDetectionProps {
 }
 
 interface ActionUnderCursor {
-  action: "moving" | "resizing" | "rotating" | "panning" | "drawing" | "none";
+  action: 'moving' | 'resizing' | 'rotating' | 'panning' | 'drawing' | 'none';
   componentId?: string;
-  handle?: ResizeHandle | "rot";
+  handle?: ResizeHandle | 'rot';
 }
 
 export const useActionDetection = ({
   components,
   selectedComponentIds,
-  isMobileMode,
+  isMobile,
   getHandleSize,
   getRotationHandleOffset,
   getTouchArea,
   zoom,
 }: UseActionDetectionProps) => {
   const getActionUnderCursor = useCallback(
-    (worldCoords: { x: number; y: number }): ActionUnderCursor | null => {
-      const reversedComponents = [...components].reverse();
-      for (const c of reversedComponents) {
+    (world: { x: number; y: number }): ActionUnderCursor | null => {
+      const reversed = [...components].reverse();
+      for (const c of reversed) {
         if (!selectedComponentIds.includes(c.id)) continue;
         if (c.isLocked) continue;
 
         const { x, y, width, height, rotation = 0 } = c;
-        const centerX = x + width / 2;
-        const centerY = y + height / 2;
-        const p = rotatePoint(worldCoords, { x: centerX, y: centerY }, -rotation);
+        const cx = x + width / 2;
+        const cy = y + height / 2;
+        const p = rotatePoint(world, { x: cx, y: cy }, -rotation);
 
-        // Use mobile-aware handle sizes and touch areas for better interaction
         const hs = getHandleSize();
         const touchArea = getTouchArea();
-        const scaledRotationOffset = getRotationHandleOffset();
+        const hsTouch = isMobile ? touchArea : hs;
+        const offset = (hsTouch - hs) / 2;
+        const rotOffset = getRotationHandleOffset();
 
-        // Use enhanced touch areas for mobile interaction while keeping visual handles smaller
-        const touchAreaSize = isMobileMode ? touchArea : hs;
-        const touchOffset = (touchAreaSize - hs) / 2;
-
-        const handleChecks: {
-          name: ResizeHandle | "rot";
-          x: number;
-          y: number;
-          w: number;
-          h: number;
-        }[] = [
-          {
-            name: "tl",
-            x: x - touchOffset,
-            y: y - touchOffset,
-            w: touchAreaSize,
-            h: touchAreaSize,
-          },
-          {
-            name: "tr",
-            x: x + width - hs - touchOffset,
-            y: y - touchOffset,
-            w: touchAreaSize,
-            h: touchAreaSize,
-          },
-          {
-            name: "bl",
-            x: x - touchOffset,
-            y: y + height - hs - touchOffset,
-            w: touchAreaSize,
-            h: touchAreaSize,
-          },
-          {
-            name: "br",
-            x: x + width - hs - touchOffset,
-            y: y + height - hs - touchOffset,
-            w: touchAreaSize,
-            h: touchAreaSize,
-          },
-          {
-            name: "tm",
-            x: x + width / 2 - touchAreaSize / 2,
-            y: y - touchOffset,
-            w: touchAreaSize,
-            h: touchAreaSize,
-          },
-          {
-            name: "bm",
-            x: x + width / 2 - touchAreaSize / 2,
-            y: y + height - hs - touchOffset,
-            w: touchAreaSize,
-            h: touchAreaSize,
-          },
-          {
-            name: "ml",
-            x: x - touchOffset,
-            y: y + height / 2 - touchAreaSize / 2,
-            w: touchAreaSize,
-            h: touchAreaSize,
-          },
-          {
-            name: "mr",
-            x: x + width - hs - touchOffset,
-            y: y + height / 2 - touchAreaSize / 2,
-            w: touchAreaSize,
-            h: touchAreaSize,
-          },
-          {
-            name: "rot",
-            x: x + width / 2 - touchAreaSize / 2,
-            y: y - scaledRotationOffset - touchOffset,
-            w: touchAreaSize,
-            h: touchAreaSize,
-          },
+        const checks: { name: ResizeHandle | 'rot'; x: number; y: number; w: number; h: number }[] = [
+          { name: 'tl', x: x - offset, y: y - offset, w: hsTouch, h: hsTouch },
+          { name: 'tr', x: x + width - hs - offset, y: y - offset, w: hsTouch, h: hsTouch },
+          { name: 'bl', x: x - offset, y: y + height - hs - offset, w: hsTouch, h: hsTouch },
+          { name: 'br', x: x + width - hs - offset, y: y + height - hs - offset, w: hsTouch, h: hsTouch },
+          { name: 'tm', x: x + width / 2 - hsTouch / 2, y: y - offset, w: hsTouch, h: hsTouch },
+          { name: 'bm', x: x + width / 2 - hsTouch / 2, y: y + height - hs - offset, w: hsTouch, h: hsTouch },
+          { name: 'ml', x: x - offset, y: y + height / 2 - hsTouch / 2, w: hsTouch, h: hsTouch },
+          { name: 'mr', x: x + width - hs - offset, y: y + height / 2 - hsTouch / 2, w: hsTouch, h: hsTouch },
+          { name: 'rot', x: x + width / 2 - hsTouch / 2, y: y - rotOffset - offset, w: hsTouch, h: hsTouch },
         ];
 
-        for (const handle of handleChecks) {
-          // Use the handle's actual position and size for detection
-          if (
-            p.x >= handle.x &&
-            p.x <= handle.x + handle.w &&
-            p.y >= handle.y &&
-            p.y <= handle.y + handle.w
-          ) {
-            return {
-              action: handle.name === "rot" ? "rotating" : "resizing",
-              componentId: c.id,
-              handle: handle.name,
-            };
+        for (const h of checks) {
+          if (p.x >= h.x && p.x <= h.x + h.w && p.y >= h.y && p.y <= h.y + h.h) {
+            return { action: h.name === 'rot' ? 'rotating' : 'resizing', componentId: c.id, handle: h.name };
           }
         }
       }
 
-      for (const c of reversedComponents) {
+      // Hit test for moving
+      for (const c of reversed) {
         const { x, y, width, height, rotation = 0 } = c;
-        const centerX = x + width / 2;
-        const centerY = y + height / 2;
-        const p = rotatePoint(worldCoords, { x: centerX, y: centerY }, -rotation);
+        const cx = x + width / 2;
+        const cy = y + height / 2;
+        const p = rotatePoint(world, { x: cx, y: cy }, -rotation);
         if (p.x >= x && p.x <= x + width && p.y >= y && p.y <= y + height) {
-          return { action: "moving", componentId: c.id };
+          return { action: 'moving', componentId: c.id };
         }
       }
+
       return null;
     },
-    [components, selectedComponentIds, isMobileMode, getHandleSize, getTouchArea, getRotationHandleOffset, zoom]
+    [components, selectedComponentIds, isMobile, getHandleSize, getTouchArea, getRotationHandleOffset, zoom]
   );
 
   return { getActionUnderCursor };

@@ -1,0 +1,37 @@
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Base transition for theme & UI */
+:root {
+  --transition-theme: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+                     color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Exclude canvas, images, video from theme transitions */
+canvas, img, video, iframe {
+  transition: none !important;
+}
+
+/* Panel slide transition */
+.slide-enter {
+  animation: slideUp var(--duration-panel) var(--easing-emphasized) forwards;
+}
+.slide-exit {
+  animation: slideDown var(--duration-panel) var(--easing-emphasized) forwards;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);   opacity: 1; }
+}
+@keyframes slideDown {
+  from { transform: translateY(0);   opacity: 1; }
+  to   { transform: translateY(100%); opacity: 0; }
+}

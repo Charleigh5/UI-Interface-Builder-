@@ -1,0 +1,54 @@
+:root {
+  /* ---------- Breakpoints (px) ---------- */
+  --bp-xs: 320;
+  --bp-sm: 375;
+  --bp-md: 480;
+  --bp-lg: 768;
+  --bp-xl: 1024;
+  --bp-2xl: 1440;
+
+  /* ---------- Spacing Scale (4px base) ---------- */
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 48px;
+  --space-10: 64px;
+  --space-11: 80px;
+  --space-12: 96px;
+
+  /* ---------- Typography ---------- */
+  --font-family: 'Inter', system-ui, sans-serif;
+  --font-size-xs: clamp(0.6875rem, 0.45rem + 0.9375vw, 0.8125rem);
+  --font-size-sm: clamp(0.75rem, 0.5625rem + 0.75vw, 0.875rem);
+  --font-size-base: clamp(0.8125rem, 0.6875rem + 0.5vw, 1rem);
+  --font-size-lg: clamp(0.875rem, 0.75rem + 0.5vw, 1.125rem);
+  --font-size-xl: clamp(1rem, 0.875rem + 0.5vw, 1.25rem);
+
+  /* ---------- Radii ---------- */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* ---------- Shadows (subtle on mobile, richer on desktop) ---------- */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.08);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+
+  /* ---------- Animation ---------- */
+  --duration-base: 150ms;
+  --duration-panel: 300ms;
+  --easing-emphasized: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Dark mode overrides */
+.dark {
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.4);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,0.5);
+}
