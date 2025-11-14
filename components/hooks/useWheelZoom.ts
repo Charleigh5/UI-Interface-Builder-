@@ -1,17 +1,17 @@
 import React, { useCallback } from 'react';
 
 interface UseWheelZoomProps {
-  isMobileMode: boolean;
+  isMobile: boolean;
   zoom: number;
   pan: { x: number; y: number };
   setViewTransform: (transform: { zoom?: number; pan?: { x: number; y: number } }) => void;
   canvasRef: React.RefObject<HTMLCanvasElement>;
 }
 
-export const useWheelZoom = ({ isMobileMode, zoom, pan, setViewTransform, canvasRef }: UseWheelZoomProps) => {
+export const useWheelZoom = ({ isMobile, zoom, pan, setViewTransform, canvasRef }: UseWheelZoomProps) => {
   const handleWheel = useCallback(
     (e: React.WheelEvent<HTMLCanvasElement>) => {
-      if (isMobileMode) return;
+      if (isMobile) return;
       e.preventDefault();
 
       const zoomFactor = 1.1;
@@ -29,7 +29,7 @@ export const useWheelZoom = ({ isMobileMode, zoom, pan, setViewTransform, canvas
 
       setViewTransform({ zoom: clampedZoom, pan: { x: newPanX, y: newPanY } });
     },
-    [isMobileMode, zoom, pan, setViewTransform, canvasRef]
+    [isMobile, zoom, pan, setViewTransform, canvasRef]
   );
 
   return { handleWheel };

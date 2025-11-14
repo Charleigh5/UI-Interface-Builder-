@@ -11,7 +11,7 @@ export const useHandleCalculations = (isMobile: boolean, zoom: number) => {
     return Math.max(visual, MIN_TOUCH / zoom);
   }, [zoom, isMobile]);
 
-  const getRotationOffset = useMemo(() () => ROT_OFFSET / zoom, [zoom, isMobile]);
+  const getRotationHandleOffset = useMemo(() => () => ROT_OFFSET / zoom, [zoom, isMobile]);
 
   const getTouchArea = useMemo(() => () => {
     if (!isMobile) return getHandleSize();
@@ -19,5 +19,5 @@ export const useHandleCalculations = (isMobile: boolean, zoom: number) => {
     return Math.max(MIN_TOUCH / zoom, HANDLE_SIZE / zoom * 1.5);
   }, [isMobile, zoom, getHandleSize]);
 
-  return { getHandleSize, getRotationOffset, getTouchArea };
+  return { getHandleSize, getRotationHandleOffset, getTouchArea };
 };

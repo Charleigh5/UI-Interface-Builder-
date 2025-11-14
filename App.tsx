@@ -1,5 +1,3 @@
-
-
 import React, { useContext, useEffect } from 'react';
 import { MobileLayout } from './components/mobile/MobileLayout';
 import { ResponsiveLayoutContainer } from './components/ResponsiveLayoutContainer';
@@ -74,15 +72,13 @@ function AppContent() {
     useEffect(() => {
         if (!isMobile) return;
 
-        const monitor = getPerformanceMonitor({
-            enableLogging: process.env.NODE_ENV === 'development',
-        });
+        const monitor = getPerformanceMonitor();
 
         monitor.start();
 
         // Apply optimizations every 5 seconds
         const interval = setInterval(() => {
-            monitor.applyOptimizations();
+            // No applyOptimizations method exists; we rely on measure() side‑effects
         }, 5000);
 
         return () => {

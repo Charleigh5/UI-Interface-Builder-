@@ -13,7 +13,7 @@ interface UseInteractionHandlersProps {
   setViewTransform: (transform: { zoom?: number; pan?: { x: number; y: number } }) => void;
   pan: { x: number; y: number };
   zoom: number;
-  isMobileMode: boolean;
+  isMobile: boolean;
   addDrawingPoint: (point: { x: number; y: number }) => void;
   currentShape: Omit<WireframeComponent, 'id' | 'label'> | null;
   setCurrentShape: React.Dispatch<
@@ -49,7 +49,7 @@ export const useInteractionHandlers = ({
   setViewTransform,
   pan,
   zoom,
-  isMobileMode,
+  isMobile,
   addDrawingPoint,
   currentShape,
   setCurrentShape,

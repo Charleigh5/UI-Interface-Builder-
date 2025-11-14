@@ -85,4 +85,4 @@ export const useGestures = ({
   }, [isMobile, isGesturing, setAction, handleMouseUp]);
 
   return { handleTouchStart, handleTouchMove, handleTouchEnd, isGesturing };
-};
+}

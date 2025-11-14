@@ -14,7 +14,7 @@ class PerformanceMonitor {
   start() {
     if (this.isMonitoring) return;
     this.isMonitoring = true;
-    this.measure();
+    this.measure(0);
   }
 
   stop() {

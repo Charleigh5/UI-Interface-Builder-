@@ -18,7 +18,7 @@ interface UseCanvasInteractionProps {
   theme: ThemeMode;
   zoom: number;
   pan: { x: number; y: number };
-  isMobileMode: boolean;
+  isMobile: boolean;
   screenToWorld: (screen: { x: number; y: number }) => { x: number; y: number };
   getHandleSize: () => number;
   getRotationHandleOffset: () => number;
@@ -39,8 +39,6 @@ interface UseCanvasInteractionProps {
 }
 
 export const useCanvasInteraction = (props: UseCanvasInteractionProps) => {
-  // body unchanged from previous version where we wired up hooks
-  // (the definition above resolves TS2304)
   const {
     canvasRef,
     currentTool,
@@ -50,7 +48,7 @@ export const useCanvasInteraction = (props: UseCanvasInteractionProps) => {
     theme,
     zoom,
     pan,
-    isMobileMode,
+    isMobile,
     screenToWorld,
     getHandleSize,
     getRotationHandleOffset,
@@ -71,7 +69,7 @@ export const useCanvasInteraction = (props: UseCanvasInteractionProps) => {
   const { getActionUnderCursor } = useActionDetection({
     components,
     selectedComponentIds,
-    isMobileMode,
+    isMobile,
     getHandleSize,
     getRotationHandleOffset,
     getTouchArea,
@@ -123,7 +121,7 @@ export const useCanvasInteraction = (props: UseCanvasInteractionProps) => {
       setViewTransform,
       pan,
       zoom,
-      isMobileMode,
+      isMobile,
       addDrawingPoint,
       currentShape,
       setCurrentShape,
@@ -145,7 +143,7 @@ export const useCanvasInteraction = (props: UseCanvasInteractionProps) => {
   });
 
   const { handleWheel } = useWheelZoom({
-    isMobileMode,
+    isMobile,
     zoom,
     pan,
     setViewTransform,

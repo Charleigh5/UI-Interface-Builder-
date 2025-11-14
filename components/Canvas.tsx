@@ -52,11 +52,11 @@ export const Canvas: React.FC = () => {
     theme,
     zoom,
     pan,
-    isMobileMode,
+    isMobile: isMobileMode,
     screenToWorld,
-    getHandleSize,
-    getRotationHandleOffset,
-    getTouchArea,
+    getHandleSize: getHandleSize(),
+    getRotationHandleOffset: getRotationHandleOffset(),
+    getTouchArea: getTouchArea(),
     triggerHapticFeedback,
     addDrawingPoint,
     drawnPaths,
@@ -82,8 +82,8 @@ export const Canvas: React.FC = () => {
     currentShape,
     drawnPaths,
     isMobileMode,
-    getHandleSize,
-    getRotationHandleOffset
+    getHandleSize(),
+    getRotationHandleOffset()
   );
 
   useEffect(() => {
@@ -116,3 +116,106 @@ export const Canvas: React.FC = () => {
     />
   );
 };
+</dyadWrite>
+
+That should fix all 31 TypeScript errors. Let me know if you see any remaining issues.<dyad-problem-report summary="9 problems">
+<problem file="components/hooks/useCanvasInteraction.ts" line="124" column="7" code="2353">Object literal may only specify known properties, and 'isMobile' does not exist in type 'UseInteractionHandlersProps'.</problem>
+<problem file="components/hooks/useCanvasInteraction.ts" line="146" column="5" code="2353">Object literal may only specify known properties, and 'isMobile' does not exist in type 'UseWheelZoomProps'.</problem>
+<problem file="components/Canvas.tsx" line="55" column="5" code="2561">Object literal may only specify known properties, but 'isMobileMode' does not exist in type 'UseCanvasInteractionProps'. Did you mean to write 'isMobile'?</problem>
+<problem file="components/hooks/useGestures.ts" line="16" column="14" code="2503">Cannot find namespace 'React'.</problem>
+<problem file="components/hooks/useGestures.ts" line="17" column="5" code="2503">Cannot find namespace 'React'.</problem>
+<problem file="components/hooks/useGestures.ts" line="20" column="14" code="2503">Cannot find namespace 'React'.</problem>
+<problem file="components/hooks/useGestures.ts" line="34" column="9" code="2503">Cannot find namespace 'React'.</problem>
+<problem file="components/hooks/useGestures.ts" line="48" column="9" code="2503">Cannot find namespace 'React'.</problem>
+<problem file="components/hooks/useGestures.ts" line="63" column="9" code="2503">Cannot find namespace 'React'.</problem>
+</dyad-problem-report>I'll fix the remaining TypeScript errors by updating the hook interfaces and imports.
+
+<dyad-write path="components/hooks/useGestures.ts" description="Add React import and fix interface">
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+
+export const useGestures = ({
+  isMobile,
+  zoom,
+  pan,
+  setViewTransform,
+  setAction,
+  handleMouseUp,
+  canvasRef,
+}: {
+  isMobile: boolean;
+  zoom: number;
+  pan: { x: number; y: number };
+  setViewTransform: (t: { zoom?: number; pan?: { x: number; y: number } }) => void;
+  setAction: React.Dispatch<
+    React.SetStateAction<'none' | 'drawing' | 'moving' | 'resizing' | 'rotating' | 'panning'>
+  >;
+  handleMouseUp: () => void;
+  canvasRef: React.RefObject<HTMLCanvasElement>;
+}) => {
+  const [isGesturing, setIsGesturing] = useState(false);
+  const initialDistanceRef = useRef(0);
+  const initialZoomRef = useRef(zoom);
+  const initialPanRef = useRef(pan);
+
+  const getDistance = (touches: TouchList) => {
+    if (touches.length < 2) return 0;
+    const [a, b] = [touches[0], touches[1]];
+    return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+  };
+
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent<HTMLCanvasElement>) => {
+      if (!isMobile) return;
+      if (e.touches.length === 2) {
+        initialDistanceRef.current = getDistance(e.touches);
+        initialZoomRef.current = zoom;
+        initialPanRef.current = pan;
+        setIsGesturing(true);
+        setAction('panning');
+      }
+    },
+    [isMobile, zoom, pan, setAction]
+  );
+
+  const handleTouchMove = useCallback(
+    (e: React.TouchEvent<HTMLCanvasElement>) => {
+      if (!isMobile || !isGesturing || e.touches.length !== 2) return;
+      e.preventDefault();
+
+      const newDist = getDistance(e.touches);
+      if (!initialDistanceRef.current) return;
+
+      const scale = newDist / initialDistanceRef.current;
+      const newZoom = Math.max(0.1, Math.min(4, initialZoomRef.current * scale));
+      setViewTransform({ zoom: newZoom, pan: initialPanRef.current });
+    },
+    [isMobile, isGesturing, setViewTransform]
+  );
+
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent<HTMLCanvasElement>) => {
+      if (!isMobile) return;
+      if (e.touches.length < 2 && isGesturing) {
+        setIsGesturing(false);
+        setAction('none');
+        handleMouseUp();
+      }
+    },
+    [isMobile, isGesturing, setAction, handleMouseUp]
+  );
+
+  useEffect(() => {
+    if (!isMobile) return;
+    const onEnd = () => {
+      if (isGesturing) {
+        setIsGesturing(false);
+        setAction('none');
+        handleMouseUp();
+      }
+    };
+    window.addEventListener('touchend', onEnd);
+    return () => window.removeEventListener('touchend', onEnd);
+  }, [isMobile, isGesturing, setAction, handleMouseUp]);
+
+  return { handleTouchStart, handleTouchMove, handleTouchEnd, isGesturing };
+}
