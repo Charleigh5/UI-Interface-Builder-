@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { MobileLayout } from './components/mobile/MobileLayout';
 import { ResponsiveLayoutContainer } from './components/ResponsiveLayoutContainer';
 import { WebLayout } from './components/web/WebLayout';

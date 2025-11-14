@@ -22,5 +22,16 @@
   <body class="bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100">
     <div id="root"></div>
     <script type="module" src="/src/index.tsx"></script>
+    
+    <!-- Service Worker Registration for PWA (Android/iOS) -->
+    <script type="module">
+      import { initializePWA, setupPageVisibilityHandler } from './src/pwa-init';
+
+      // Run PWA initialization after DOM is loaded
+      window.addEventListener('DOMContentLoaded', async () => {
+        await initializePWA();
+        setupPageVisibilityHandler();
+      });
+    </script>
   </body>
 </html>
