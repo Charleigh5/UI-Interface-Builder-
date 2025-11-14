@@ -3,7 +3,8 @@ const STATIC_CACHE_URLS = [
   '/',
   '/index.html',
   '/manifest.json',
-  // Add any other static assets you want to cache
+  '/icon-192.png',
+  '/icon-512.png'
 ];
 
 // Install event - cache static assets
@@ -18,12 +19,10 @@ self.addEventListener('install', (event) => {
       })
       .then(() => {
         console.log('Service Worker installed successfully');
-        // Skip waiting to activate immediately
         return self.skipWaiting();
       })
       .catch((error) => {
         console.error('Service Worker install failed:', error);
-        // Don't throw the error, just log it
       })
   );
 });
@@ -46,7 +45,6 @@ self.addEventListener('activate', (event) => {
       })
       .then(() => {
         console.log('Service Worker activated');
-        // Claim clients immediately
         return self.clients.claim();
       })
       .catch((error) => {
@@ -57,12 +55,10 @@ self.addEventListener('activate', (event) => {
 
 // Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', (event) => {
-  // Only handle GET requests
   if (event.request.method !== 'GET') {
     return;
   }
 
-  // Skip chrome-extension and other non-http requests
   if (!event.request.url.startsWith('http')) {
     return;
   }
@@ -70,24 +66,19 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request)
       .then((cachedResponse) => {
-        // Return cached version if available
         if (cachedResponse) {
           console.log('Serving from cache:', event.request.url);
           return cachedResponse;
         }
 
-        // Otherwise, fetch from network
         return fetch(event.request)
           .then((response) => {
-            // Don't cache if not a valid response
             if (!response || response.status !== 200 || response.type !== 'basic') {
               return response;
             }
 
-            // Clone the response
             const responseToCache = response.clone();
 
-            // Cache the response for future use
             caches.open(CACHE_NAME)
               .then((cache) => {
                 cache.put(event.request, responseToCache);
@@ -101,12 +92,10 @@ self.addEventListener('fetch', (event) => {
           .catch((error) => {
             console.error('Fetch failed:', error);
             
-            // Fallback: serve the main page for navigation requests
             if (event.request.mode === 'navigate') {
               return caches.match('/') || caches.match('/index.html');
             }
             
-            // For other requests, just fail
             throw error;
           });
       })

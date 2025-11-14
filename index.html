@@ -3,21 +3,26 @@
       import { registerServiceWorker } from './utils/serviceWorkerRegistration.ts';
 
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          registerServiceWorker({
-            onSuccess: (registration) => {
-              console.log('ServiceWorker registered:', registration.scope);
-            },
-            onUpdate: (registration) => {
-              console.log('ServiceWorker update available');
-            },
-            onError: (error) => {
-              console.warn('ServiceWorker registration failed:', error.message);
-              // Don't block the app if service worker fails
-            }
-          });
+        window.addEventListener('load', async () => {
+          try {
+            await registerServiceWorker({
+              onSuccess: (registration) => {
+                console.log('✅ ServiceWorker registered successfully:', registration.scope);
+              },
+              onUpdate: (registration) => {
+                console.log('🔄 ServiceWorker update available');
+              },
+              onError: (error) => {
+                console.warn('⚠️ ServiceWorker registration failed:', error.message);
+                // Don't block the app if service worker fails
+              }
+            });
+          } catch (error) {
+            console.warn('⚠️ ServiceWorker registration error:', error);
+            // Don't let this break the app
+          }
         });
       } else {
-        console.log('ServiceWorker not supported in this browser');
+        console.log('ℹ️ ServiceWorker not supported in this browser');
       }
     </script>
