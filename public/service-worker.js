@@ -3,7 +3,6 @@ const STATIC_CACHE_URLS = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/sw-check.js',
   '/favicon.ico'
 ];
 
@@ -137,30 +136,3 @@ self.addEventListener('error', (event) => {
 self.addEventListener('unhandledrejection', (event) => {
   console.error('[SW] Service Worker unhandled promise rejection:', event.reason);
 });
-
-// Periodic cleanup (runs every 10 minutes)
-setInterval(async () => {
-  try {
-    const cache = await caches.open(CACHE_NAME);
-    const keys = await cache.keys();
-    
-    // Remove any requests older than 24 hours
-    const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
-    
-    for (const request of keys) {
-      const response = await cache.match(request);
-      if (response) {
-        const dateHeader = response.headers.get('date');
-        if (dateHeader) {
-          const responseDate = new Date(dateHeader).getTime();
-          if (responseDate < oneDayAgo) {
-            await cache.delete(request);
-            console.log('[SW] Cleaned up old cached request:', request.url);
-          }
-        }
-      }
-    }
-  } catch (error) {
-    console.warn('[SW] Periodic cleanup failed:', error);
-  }
-}, 10 * 60 * 1000); // Every 10 minutes
